@@ -62,6 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for Firebase auth state changes
   useEffect(() => {
+    // Auto-logout on every refresh for testing
+    const autoLogout = async () => {
+      try {
+        await logOut();
+      } catch (error) {
+        console.log('Auto-logout failed:', error);
+      }
+    };
+    
+    autoLogout();
+
     const unsubscribe = onAuthChange(async (user) => {
       setFirebaseUser(user);
       

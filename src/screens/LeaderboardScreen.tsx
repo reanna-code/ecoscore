@@ -245,44 +245,6 @@ export function LeaderboardScreen() {
       <div className="p-4">
         {hasFriends ? (
           <div className="space-y-6">
-            {/* Friends list section */}
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  your friends
-                </h2>
-              </div>
-              <div className="space-y-2">
-                {mockUser.friendIds.map((friendId) => {
-                  const friend = getUserById(friendId);
-                  if (!friend) return null;
-                  
-                  return (
-                    <div
-                      key={friendId}
-                      className="flex items-center gap-3 p-3 rounded-2xl bg-card"
-                    >
-                      {/* avatar */}
-                      <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm shrink-0">
-                        {friend.username.charAt(0).toUpperCase()}
-                      </div>
-                      
-                      {/* info */}
-                      <div className="flex-1 min-w-0">
-                        <span className="font-semibold truncate block">
-                          {friend.username}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {friend.points.toLocaleString()} pts
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* Podium for Top 3 */}
             <div className="relative pt-8 pb-4">
               <div className="flex items-end justify-center gap-2">

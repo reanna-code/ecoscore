@@ -13,6 +13,31 @@ router.post('/register', authenticateToken, async (req, res) => {
     const { username, displayName } = req.body;
     const { uid, email } = req.user;
 
+    // TEMPORARY: If MongoDB is not connected, return mock response for UI testing
+    if (!User.db || User.db.readyState !== 1) {
+      console.warn('⚠️  MongoDB not connected - returning mock user for UI testing');
+      const mockUser = {
+        id: uid,
+        firebaseUid: uid,
+        email,
+        username: username?.toLowerCase() || 'testuser',
+        displayName: displayName || username || 'Test User',
+        friendCode: `ECO-${uid.substring(0, 6).toUpperCase()}-2024`,
+        ecoScore: 75,
+        pointsBalance: 500,
+        totalPointsEarned: 1200,
+        streakCount: 5,
+        scansThisMonth: 12,
+        swapsThisMonth: 8,
+        badges: [
+          { badgeId: 'eco_warrior', name: 'Eco Warrior', category: 'general', earnedAt: new Date().toISOString() }
+        ],
+        friends: [],
+        isPublicProfile: true
+      };
+      return res.status(201).json({ user: mockUser, isNew: true });
+    }
+
     // Check if user already exists
     let user = await User.findOne({ firebaseUid: uid });
     
@@ -59,6 +84,31 @@ router.post('/register', authenticateToken, async (req, res) => {
  */
 router.get('/me', authenticateToken, async (req, res) => {
   try {
+    // TEMPORARY: If MongoDB is not connected, return mock response for UI testing
+    if (!User.db || User.db.readyState !== 1) {
+      console.warn('⚠️  MongoDB not connected - returning mock user for UI testing');
+      const mockUser = {
+        id: req.user.uid,
+        firebaseUid: req.user.uid,
+        email: req.user.email,
+        username: 'testuser',
+        displayName: 'Test User',
+        friendCode: `ECO-${req.user.uid.substring(0, 6).toUpperCase()}-2024`,
+        ecoScore: 75,
+        pointsBalance: 500,
+        totalPointsEarned: 1200,
+        streakCount: 5,
+        scansThisMonth: 12,
+        swapsThisMonth: 8,
+        badges: [
+          { badgeId: 'eco_warrior', name: 'Eco Warrior', category: 'general', earnedAt: new Date().toISOString() }
+        ],
+        friends: [],
+        isPublicProfile: true
+      };
+      return res.json({ user: mockUser });
+    }
+
     const user = await User.findOne({ firebaseUid: req.user.uid })
       .populate('friends', 'username displayName avatarUrl ecoScore pointsBalance badges');
     
