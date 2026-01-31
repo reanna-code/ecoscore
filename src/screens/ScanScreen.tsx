@@ -1,14 +1,18 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/Button';
-import { Camera, Upload, X, Zap, Image as ImageIcon, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Camera, Upload, X, Zap, Image as ImageIcon, Plus, Trash2, Loader2, Link, ArrowRight } from 'lucide-react';
 import { AnalysisResultsScreen } from './AnalysisResultsScreen';
-import { analyzeProductWithGemini, fileToBase64, GeminiAnalysisResult } from '@/services/geminiService';
+import { analyzeProductWithGemini, analyzeProductFromUrl, fileToBase64, GeminiAnalysisResult } from '@/services/geminiService';
 
 // API key from environment variable
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
+type InputMode = 'image' | 'url';
+
 export function ScanScreen() {
+  const [inputMode, setInputMode] = useState<InputMode>('image');
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [productUrl, setProductUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<GeminiAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,8 +41,18 @@ export function ScanScreen() {
   };
 
   const handleAnalyze = async () => {
-    if (capturedImages.length === 0) {
+    if (inputMode === 'image' && capturedImages.length === 0) {
       setError('Please capture at least one image');
+      return;
+    }
+
+    if (inputMode === 'url' && !productUrl.trim()) {
+      setError('Please enter a product URL');
+      return;
+    }
+
+    if (inputMode === 'url' && !isValidUrl(productUrl)) {
+      setError('Please enter a valid URL');
       return;
     }
 
@@ -51,13 +65,28 @@ export function ScanScreen() {
     setError(null);
 
     try {
-      const result = await analyzeProductWithGemini(capturedImages, GEMINI_API_KEY);
+      let result: GeminiAnalysisResult;
+      if (inputMode === 'url') {
+        result = await analyzeProductFromUrl(productUrl.trim(), GEMINI_API_KEY);
+      } else {
+        result = await analyzeProductWithGemini(capturedImages, GEMINI_API_KEY);
+      }
       setAnalysisResult(result);
     } catch (err) {
       console.error('Analysis failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to analyze product. Please try again.');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  // URL validation helper
+  const isValidUrl = (url: string): boolean => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
     }
   };
 
@@ -68,6 +97,12 @@ export function ScanScreen() {
   const handleScanAgain = () => {
     setAnalysisResult(null);
     setCapturedImages([]);
+    setProductUrl('');
+    setError(null);
+  };
+
+  const handleModeSwitch = (mode: InputMode) => {
+    setInputMode(mode);
     setError(null);
   };
 
@@ -85,13 +120,84 @@ export function ScanScreen() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Mode toggle tabs */}
+      <div className="bg-muted/50 p-2 mx-4 mt-4 rounded-xl">
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleModeSwitch('image')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+              inputMode === 'image'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4" />
+            image
+          </button>
+          <button
+            onClick={() => handleModeSwitch('url')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+              inputMode === 'url'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Link className="w-4 h-4" />
+            product url
+          </button>
+        </div>
+      </div>
+
       {/* header area with captured images preview */}
       <div className="relative flex-1 bg-gradient-to-b from-muted to-background overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.3)_100%)]" />
 
-        {/* image capture area */}
+        {/* content area - changes based on mode */}
         <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
-          {capturedImages.length === 0 ? (
+          {inputMode === 'url' ? (
+            /* URL input mode */
+            <div className="w-full max-w-sm space-y-6">
+              <div className="text-center space-y-2">
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                  <Link className="w-10 h-10 text-primary" />
+                </div>
+                <h2 className="font-semibold text-lg text-foreground">
+                  paste product url
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  enter the URL of any product page from Amazon, Walmart, Target, or any online store
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={productUrl}
+                    onChange={(e) => setProductUrl(e.target.value)}
+                    placeholder="https://www.amazon.com/product..."
+                    className="w-full px-4 py-4 pr-12 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                  {productUrl && (
+                    <button
+                      onClick={() => setProductUrl('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted transition-colors"
+                    >
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+                
+                {productUrl && isValidUrl(productUrl) && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    valid url detected
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : capturedImages.length === 0 ? (
+            /* Image mode - empty state */
             <div className="text-center space-y-6">
               <div className="w-32 h-32 rounded-3xl border-4 border-dashed border-primary/50 flex items-center justify-center mx-auto">
                 <ImageIcon className="w-12 h-12 text-primary/40" />
@@ -106,6 +212,7 @@ export function ScanScreen() {
               </div>
             </div>
           ) : (
+            /* Image mode - has images */
             <div className="w-full max-w-sm space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 {capturedImages.map((img, i) => (
@@ -147,7 +254,9 @@ export function ScanScreen() {
         <div className="absolute bottom-8 left-0 right-0 text-center">
           <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
             <Zap className="w-4 h-4" />
-            good lighting helps. capture labels clearly.
+            {inputMode === 'url' 
+              ? 'paste any product page url to analyze'
+              : 'good lighting helps. capture labels clearly.'}
           </p>
         </div>
       </div>
@@ -178,7 +287,27 @@ export function ScanScreen() {
           </div>
         )}
 
-        {capturedImages.length === 0 ? (
+        {inputMode === 'url' ? (
+          /* URL mode controls */
+          <Button
+            onClick={handleAnalyze}
+            disabled={!productUrl.trim() || isAnalyzing}
+            className="w-full h-14 text-lg"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                analyzing product...
+              </>
+            ) : (
+              <>
+                <ArrowRight className="w-5 h-5 mr-2" />
+                find greener alternatives
+              </>
+            )}
+          </Button>
+        ) : capturedImages.length === 0 ? (
+          /* Image mode - no images */
           <div className="flex gap-3">
             <Button
               variant="outline"
@@ -197,6 +326,7 @@ export function ScanScreen() {
             </Button>
           </div>
         ) : (
+          /* Image mode - has images */
           <div className="space-y-3">
             <div className="flex gap-3">
               <Button
@@ -218,7 +348,7 @@ export function ScanScreen() {
             </div>
             <Button
               onClick={handleAnalyze}
-              loading={isAnalyzing}
+              disabled={isAnalyzing}
               className="w-full h-14 text-lg"
             >
               {isAnalyzing ? (

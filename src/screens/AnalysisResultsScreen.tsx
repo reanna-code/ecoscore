@@ -21,6 +21,8 @@ import {
   Sparkles,
   Share2,
   DollarSign,
+  BadgeCheck,
+  ShoppingBag,
 } from 'lucide-react';
 
 interface AnalysisResultsScreenProps {
@@ -255,57 +257,103 @@ export function AnalysisResultsScreen({
             </span>
           </h3>
 
+          {/* Partner alternatives section */}
+          {analysis.alternatives.some(alt => alt.isPartner) && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <BadgeCheck className="w-4 h-4 text-blue-500" />
+              <span>Partner brands shown first</span>
+            </div>
+          )}
+
           <div className="space-y-3">
-            {analysis.alternatives.map((alt, i) => (
-              <button
+            {/* Sort alternatives: partners first, then others */}
+            {[...analysis.alternatives]
+              .sort((a, b) => (b.isPartner ? 1 : 0) - (a.isPartner ? 1 : 0))
+              .map((alt, i) => (
+              <div
                 key={i}
-                onClick={() => setSelectedAlternative(selectedAlternative === i ? null : i)}
                 className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                  selectedAlternative === i
+                  selectedAlternative === analysis.alternatives.indexOf(alt)
                     ? 'border-primary bg-primary/5'
-                    : 'border-border bg-muted/30 hover:border-primary/50'
+                    : alt.isPartner
+                    ? 'border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30'
+                    : 'border-border bg-muted/30'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-semibold text-foreground">{alt.name}</h4>
-                      <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-xs font-semibold">
-                        +{Math.max(0, alt.estimatedEcoScore - analysis.ecoScore)} pts
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{alt.brand}</p>
-                    
-                    {/* Price display */}
-                    {alt.estimatedPrice && (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <DollarSign className="w-4 h-4 text-emerald-600" />
-                        <span className="text-sm font-semibold text-emerald-600">
-                          {formatPrice(alt.estimatedPrice)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">(est.)</span>
-                      </div>
-                    )}
-                    
-                    <p className="text-sm text-muted-foreground mt-2">{alt.reason}</p>
-
-                    {alt.whereToBuy.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {alt.whereToBuy.map((store, j) => (
-                          <span
-                            key={j}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted text-xs text-muted-foreground"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            {store}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                {/* Partner badge */}
+                {alt.isPartner && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <BadgeCheck className="w-4 h-4 text-blue-500" />
+                    <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                      Partner Brand
+                    </span>
                   </div>
-                  <EcoScoreBadge score={alt.estimatedEcoScore} size="md" />
-                </div>
-              </button>
+                )}
+                
+                <button
+                  onClick={() => setSelectedAlternative(
+                    selectedAlternative === analysis.alternatives.indexOf(alt) 
+                      ? null 
+                      : analysis.alternatives.indexOf(alt)
+                  )}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold text-foreground">{alt.name}</h4>
+                        <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-xs font-semibold">
+                          +{Math.max(0, alt.estimatedEcoScore - analysis.ecoScore)} pts
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{alt.brand}</p>
+                      
+                      {/* Price display */}
+                      {alt.estimatedPrice && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <DollarSign className="w-4 h-4 text-emerald-600" />
+                          <span className="text-sm font-semibold text-emerald-600">
+                            {formatPrice(alt.estimatedPrice)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">(est.)</span>
+                        </div>
+                      )}
+                      
+                      <p className="text-sm text-muted-foreground mt-2">{alt.reason}</p>
+
+                      {alt.whereToBuy.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {alt.whereToBuy.map((store, j) => (
+                            <span
+                              key={j}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted text-xs text-muted-foreground"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              {store}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <EcoScoreBadge score={alt.estimatedEcoScore} size="md" />
+                  </div>
+                </button>
+
+                {/* Visit Product button */}
+                {alt.productUrl && (
+                  <a
+                    href={alt.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    Visit Product Page
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
             ))}
           </div>
         </section>

@@ -33,6 +33,8 @@ export interface GeminiAlternative {
     max: number;
     currency: string;
   } | null;
+  productUrl: string | null;
+  isPartner: boolean;
 }
 
 // Convert Gemini result to app Product format
