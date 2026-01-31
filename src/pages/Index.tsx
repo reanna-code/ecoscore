@@ -12,16 +12,7 @@ const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('scan');
 
-  // check if user has seen onboarding
-  useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem('ecoscore_onboarding_complete');
-    if (hasSeenOnboarding) {
-      setShowOnboarding(false);
-    }
-  }, []);
-
   const handleOnboardingComplete = () => {
-    localStorage.setItem('ecoscore_onboarding_complete', 'true');
     setShowOnboarding(false);
   };
 

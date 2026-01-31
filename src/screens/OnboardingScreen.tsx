@@ -61,7 +61,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           <div className="space-y-2">
             <h1 className="text-4xl font-bold text-foreground">welcome to ecoscore</h1>
             <p className="text-muted-foreground">
-              make smarter, greener choices. one scan at a time.
+              make smarter, greener choices. one capture at a time.
             </p>
           </div>
 
