@@ -26,26 +26,54 @@ interface CategoryBrowseScreenProps {
 // 3. Update image field to '/products/filename.jpg'
 const mockProducts: Product[] = [
   // SNACKS - Real products with actual URLs
-  { id: 's1', name: 'Solar Dried Mango', brand: 'Sol Simple', price: 6.99, ecoScore: 92, image: '', category: 'snacks', url: 'https://solsimple.com/products/solar-dried-mango-regenerative-organic-certified-3-oz' },
-  { id: 's2', name: 'Cookie Crumble Drizzled Granola Bars', brand: 'MadeGood', price: 1.30, ecoScore: 88, image: '', category: 'snacks', url: 'https://www.madegoodfoods.ca/products/cookie-crumble-drizzled-granola-bars' },
-  { id: 's3', name: 'Cookies & Crème Granola Bars', brand: 'MadeGood', price: 2.00, ecoScore: 87, image: '', category: 'snacks', url: 'https://www.madegoodfoods.com/products/cookies-creme-granola-bars' },
-  { id: 's4', name: 'Protein Bar Sample Pack (12 bars)', brand: 'ALOHA', price: 38.99, ecoScore: 85, image: '', category: 'snacks', url: 'https://aloha.com/products/variety-pack-protein-bar' },
-  { id: 's5', name: 'Superfood+ Trail Mix Antioxidant Blend', brand: 'Navitas Organics', price: 19.99, ecoScore: 90, image: '', category: 'snacks', url: 'https://navitasorganics.com/products/superfood-trail-mix-antioxidant-blend' },
-  { id: 's6', name: 'Classic Dark Chocolate Truffles', brand: 'Alter Eco', price: 9.95, ecoScore: 89, image: '', category: 'snacks', url: 'https://www.alterecofoods.com/products/classic-dark-truffles' },
-  { id: 's7', name: 'Milk Chocolate 32% Bar (180g)', brand: "Tony's Chocolonely", price: 5.99, ecoScore: 91, image: '', category: 'snacks', url: 'https://tonyschocolonely.com/products/milk-chocolate-32-180g' },
-  { id: 's8', name: '70% Dark Chocolate Bar (90g)', brand: 'Divine', price: 4.30, ecoScore: 93, image: '', category: 'snacks', url: 'https://divinechocolate.com/products/divine-70-dark-chocolate' },
+  { id: 's1', name: 'SOLAR DRIED MANGO', brand: 'Sol Simple', price: 6.99, ecoScore: 92, image: '', category: 'snacks', url: 'https://solsimple.com/?srsltid=AfmBOoq9EFlZSlKMlSFvA53bLYiG56x5YDOjjD6dHNU4zu-AEYXrzJLx&utm_source=chatgpt.com' },
+  { id: 's2', name: 'COOKIE CRUMBLE DRIZZLED GRANOLA BARS', brand: 'MadeGood', price: 1.30, ecoScore: 88, image: '', category: 'snacks', url: 'https://www.madegoodfoods.ca/products/cookie-crumble-drizzled-granola-bars?srsltid=AfmBOor3RLadeVkuhKHprE5MWdugznVM4dx2uWLVcJ2Z0gdUSC_8_elR&utm_source=chatgpt.com' },
+  { id: 's3', name: 'COOKIES & CRÈME GRANOLA BARS', brand: 'MadeGood', price: 2.00, ecoScore: 87, image: '', category: 'snacks', url: 'https://www.madegoodfoods.com/products/cookies-creme-granola-bars?srsltid=AfmBOopMZe3uwI3nO_hcqgnOQOM1XkisLDYMACARQfCIeujTCTj82JxJ&utm_source=chatgpt.com' },
+  { id: 's4', name: 'PROTEIN BAR SAMPLE PACK (12 BARS)', brand: 'ALOHA', price: 38.99, ecoScore: 85, image: '', category: 'snacks', url: 'https://aloha.com/products/variety-pack-protein-bar?srsltid=AfmBOopafvFxqmp_U5GTSpe9ebCbvweNa3ZssOAc7rdlYzn7521XTM0x&utm_source=chatgpt.com' },
+  { id: 's5', name: 'SUPERFOOD+ TRAIL MIX ANTIOXIDANT BLEND', brand: 'Navitas Organics', price: 19.99, ecoScore: 90, image: '', category: 'snacks', url: 'https://navitasorganics.com/products/superfood-trail-mix-antioxidant-blend?srsltid=AfmBOorNfvFcxWpNXMP8X1Y3JP7tVvnpsgmTujgttCcA1-zoYDnmAGdO&utm_source=chatgpt.com' },
+  { id: 's6', name: 'CLASSIC DARK CHOCOLATE TRUFFLES', brand: 'Alter Eco', price: 9.95, ecoScore: 89, image: '', category: 'snacks', url: 'https://www.alterecofoods.com/products/classic-dark-truffles?srsltid=AfmBOorNOv9S1F28zUSA5I4jCG6O3L_9YeYK3szMyOJ4WtdfI4Xwzicg&utm_source=chatgpt.com' },
+  { id: 's7', name: 'MILK CHOCOLATE 32% BAR (180G)', brand: "Tony's Chocolonely", price: 5.99, ecoScore: 91, image: '', category: 'snacks', url: 'https://tonyschocolonely.com/products/milk-chocolate-32-180g?utm_source=chatgpt.com' },
+  { id: 's8', name: '70% DARK CHOCOLATE BAR (90G)', brand: 'Divine', price: 4.30, ecoScore: 93, image: '', category: 'snacks', url: 'https://www.amazon.ca/Divine-70-Dark-Chocolate-90g/dp/B01B02EB7Y' },
   
-  // Other categories (keeping some variety)
-  { id: 'p7', name: 'Bamboo Shampoo Bar', brand: 'ZeroWaste', price: 12.99, ecoScore: 92, image: '', category: 'shampoo', url: '#' },
-  { id: 'p8', name: 'Tea Tree Shampoo', brand: 'EcoHair', price: 8.99, ecoScore: 81, image: '', category: 'shampoo', url: '#' },
-  { id: 'p9', name: 'Coconut Shampoo', brand: 'PureClean', price: 9.49, ecoScore: 79, image: '', category: 'shampoo', url: '#' },
-  { id: 'p10', name: 'Herbal Shampoo', brand: 'GreenRoots', price: 7.99, ecoScore: 84, image: '', category: 'shampoo', url: '#' },
-  { id: 'p11', name: 'Vinegar Cleaner', brand: 'CleanEarth', price: 4.99, ecoScore: 90, image: '', category: 'cleaning', url: '#' },
-  { id: 'p12', name: 'Dish Soap Bar', brand: 'ZeroWaste', price: 5.49, ecoScore: 87, image: '', category: 'cleaning', url: '#' },
-  { id: 'p13', name: 'Kombucha', brand: 'LiveCulture', price: 3.99, ecoScore: 76, image: '', category: 'drinks', url: '#' },
-  { id: 'p14', name: 'Organic Juice', brand: 'FreshPress', price: 4.49, ecoScore: 80, image: '', category: 'drinks', url: '#' },
-  { id: 'p15', name: 'Beeswax Wraps', brand: 'ReusableKit', price: 14.99, ecoScore: 95, image: '', category: 'household', url: '#' },
-  { id: 'p16', name: 'Bamboo Utensils', brand: 'EcoKitchen', price: 9.99, ecoScore: 89, image: '', category: 'household', url: '#' },
+  // CLOTHES - Real products from sustainable brands
+  { id: 'c1', name: "WOMEN'S REGENERATIVE ORGANIC COTTON TEE", brand: 'Patagonia', price: 55.00, ecoScore: 95, image: 'https://www.patagonia.com/dw/image/v2/BDJB_PRD/on/demandware.static/-/Sites-patagonia-master/default/dwa7391185/images/hi-res/42180_UDNL_SM1.jpg?sw=1920&sh=1920&sfrm=png&q=90&bgcolor=f3f4ef', category: 'clothes', url: 'https://www.patagonia.com/product/womens-regenerative-organic-certified-cotton-tee/42180.html' },
+  { id: 'c2', name: "MEN'S AQUATIC ACTION ORGANIC COTTON T-SHIRT", brand: 'Patagonia', price: 45.00, ecoScore: 93, image: 'https://www.patagonia.com/dw/image/v2/BDJB_PRD/on/demandware.static/-/Sites-patagonia-master/default/dw5c37c2d2/images/hi-res/37801_LFNL_CS1.jpg?sw=1920&sh=1920&sfrm=png&q=90&bgcolor=f3f4ef', category: 'clothes', url: 'https://www.patagonia.com/product/mens-aquatic-action-organic-cotton-t-shirt/37801.html' },
+  { id: 'c3', name: 'COMPRESSIVE HIGH-RISE LEGGING', brand: 'Girlfriend Collective', price: 78.00, ecoScore: 92, image: 'https://girlfriend.com/cdn/shop/files/4008_4007_HRLegging_M_Black_7_web_2048x2048.jpg?v=1744659562', category: 'clothes', url: 'https://girlfriend.com/products/black-compressive-high-rise-legging' },
+  { id: 'c4', name: 'REYNARD ZIP HOODIE', brand: 'Tentree', price: 68.00, ecoScore: 91, image: 'https://www.tentree.ca/cdn/shop/files/Brown-TreeFleece-Full-Zip-TCM4391-5586_4.jpg?v=1749230486&width=800', category: 'clothes', url: 'https://www.tentree.ca/products/reynard-zip-hoodie-kona' },
+  { id: 'c5', name: 'BLACK V NECK BRALETTE', brand: 'Girlfriend Collective', price: 38.00, ecoScore: 90, image: 'https://girlfriend.com/cdn/shop/files/9004_VNeckBralette_Black_1_web_2048x2048.jpg?v=1712996179', category: 'clothes', url: 'https://girlfriend.com/products/black-v-neck-bralette?_pos=1&_sid=6b0d7b0e9&_ss=r' },
+  { id: 'c6', name: "BAKER T-SHIRT", brand: 'Tentree', price: 32.00, ecoScore: 89, image: 'https://www.tentree.com/cdn/shop/files/Green-Treeblend-Classic-T-Shirt-TCM1869-5593_4.jpg?v=1749230317&width=800', category: 'clothes', url: 'https://www.tentree.com/products/baker-t-shirt-jade-heather' },
+  
+  // SHOES - Real products from sustainable brands
+  { id: 'sh1', name: "WOMEN'S WOOL RUNNER", brand: 'Allbirds', price: 110.00, ecoScore: 94, image: '', category: 'shoes', url: 'https://www.allbirds.com/products/womens-wool-runners' },
+  { id: 'sh2', name: "MEN'S WOOL RUNNER", brand: 'Allbirds', price: 110.00, ecoScore: 94, image: '', category: 'shoes', url: 'https://www.allbirds.com/products/mens-wool-runners' },
+  { id: 'sh3', name: "WOMEN'S WOOL RUNNER GO", brand: 'Allbirds', price: 110.00, ecoScore: 93, image: '', category: 'shoes', url: 'https://www.allbirds.com/products/womens-wool-runner-go' },
+  { id: 'sh4', name: "MEN'S WOOL RUNNER GO", brand: 'Allbirds', price: 110.00, ecoScore: 93, image: '', category: 'shoes', url: 'https://www.allbirds.com/products/mens-wool-runner-go-natural-white' },
+  { id: 'sh5', name: "MEN'S TREE RUNNERS", brand: 'Allbirds', price: 100.00, ecoScore: 92, image: '', category: 'shoes', url: 'https://www.allbirds.com/products/mens-tree-runners' },
+  { id: 'sh6', name: "MEN'S TRAIL RUNNERS", brand: 'Allbirds', price: 140.00, ecoScore: 91, image: '', category: 'shoes', url: 'https://www.allbirds.com/products/mens-trail-runners-natural-black-dark-jungle' },
+  
+  // PHONE CASES - Real products from Pela Case
+  { id: 'pc1', name: 'SEASHELL SUNSET iPHONE 15 PRO CASE', brand: 'Pela Case', price: 65.00, ecoScore: 96, image: '', category: 'phonecases', url: 'https://pelacase.com/products/seashell-sunset-eco-friendly-iphone-15-pro-case' },
+  { id: 'pc2', name: 'iPHONE 15 COMPOSTABLE CASE', brand: 'Pela Case', price: 65.00, ecoScore: 96, image: '', category: 'phonecases', url: 'https://pelacase.com/collections/iphone-15-cases' },
+  { id: 'pc3', name: 'POWDER BLUE iPHONE 15 CASE', brand: 'Pela Case', price: 65.00, ecoScore: 95, image: '', category: 'phonecases', url: 'https://pelacase.com/products/powder-blue-iphone-15-case' },
+  { id: 'pc4', name: 'iPHONE 14 PRO COMPOSTABLE CASE', brand: 'Pela Case', price: 65.00, ecoScore: 95, image: '', category: 'phonecases', url: 'https://pelacase.com/collections/iphone-14-pro-case' },
+  { id: 'pc5', name: 'BLACK iPHONE 15 CASE', brand: 'Pela Case', price: 65.00, ecoScore: 95, image: '', category: 'phonecases', url: 'https://uk.pelacase.com/products/black-iphone-15-case' },
+  { id: 'pc6', name: 'iPHONE 15 SERIES CASES', brand: 'Pela Case', price: 65.00, ecoScore: 95, image: '', category: 'phonecases', url: 'https://pelacase.com/collections/iphone-15' },
+  
+  // HOUSEHOLD - Real products from Seventh Generation
+  { id: 'h1', name: 'EASYDOSE™ ULTRA CONCENTRATED LAUNDRY DETERGENT', brand: 'Seventh Generation', price: 14.99, ecoScore: 90, image: '', category: 'household', url: 'https://www.seventhgeneration.com/easydose-ultra-concentrated-laundry-detergent-freeclear' },
+  { id: 'h2', name: 'LAUNDRY DETERGENT PACKS - FREE & CLEAR', brand: 'Seventh Generation', price: 13.99, ecoScore: 91, image: '', category: 'household', url: 'https://www.seventhgeneration.com/laundry-detergent-packs-free-clear' },
+  { id: 'h3', name: 'POWER+™ ULTRA CONCENTRATED LAUNDRY DETERGENT', brand: 'Seventh Generation', price: 15.99, ecoScore: 89, image: '', category: 'household', url: 'https://www.seventhgeneration.com/easy-dose-power-plus-laundry-detergent' },
+  { id: 'h4', name: 'CONCENTRATED LAUNDRY DETERGENT', brand: 'Seventh Generation', price: 11.99, ecoScore: 88, image: '', category: 'household', url: 'https://www.seventhgeneration.com/concentrated-laundry-detergent-free-clear-40-fl-oz' },
+  { id: 'h5', name: 'ALL-PURPOSE CLEANER', brand: 'Seventh Generation', price: 5.49, ecoScore: 90, image: '', category: 'household', url: 'https://www.seventhgeneration.com/cleaning-products' },
+  { id: 'h6', name: 'DISINFECTING WIPES', brand: 'Seventh Generation', price: 5.99, ecoScore: 89, image: '', category: 'household', url: 'https://www.seventhgeneration.com/cleaning-products' },
+  
+  // SELFCARE - Real products from Tom's of Maine
+  { id: 'sc1', name: 'WHOLE CARE PEPPERMINT TOOTHPASTE WITH FLUORIDE', brand: "Tom's of Maine", price: 5.99, ecoScore: 87, image: '', category: 'selfcare', url: 'https://tomsofmaine.com/products/whole-care-natural-peppermint-toothpaste-with-fluoride' },
+  { id: 'sc2', name: 'SIMPLY WHITE SWEET MINT TOOTHPASTE', brand: "Tom's of Maine", price: 5.99, ecoScore: 86, image: '', category: 'selfcare', url: 'https://www.tomsofmaine.com/products/oral-care/simply-white-toothpaste/sweet-mint' },
+  { id: 'sc3', name: 'FLUORIDE-FREE RAPID RELIEF SENSITIVE', brand: "Tom's of Maine", price: 5.99, ecoScore: 88, image: '', category: 'selfcare', url: 'https://www.tomsofmaine.com/' },
+  { id: 'sc4', name: 'NATURAL DEODORANT - LAVENDER', brand: "Tom's of Maine", price: 5.49, ecoScore: 85, image: '', category: 'selfcare', url: 'https://www.tomsofmaine.com/' },
+  { id: 'sc5', name: 'NATURAL MOUTHWASH', brand: "Tom's of Maine", price: 6.99, ecoScore: 86, image: '', category: 'selfcare', url: 'https://www.tomsofmaine.com/' },
+  { id: 'sc6', name: 'SILLY STRAWBERRY KIDS TOOTHPASTE', brand: "Tom's of Maine", price: 4.99, ecoScore: 87, image: '', category: 'selfcare', url: 'https://www.tomsofmaine.com/' },
 ];
 
 const sortOptions = [
@@ -240,15 +268,24 @@ export function CategoryBrowseScreen({ category, onBack }: CategoryBrowseScreenP
                     alt={product.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      // Fallback to gradient if image fails to load
+                      // Fallback to placeholder if image fails to load
                       e.currentTarget.style.display = 'none';
+                      const placeholder = e.currentTarget.nextElementSibling;
+                      if (placeholder) placeholder.style.display = 'flex';
                     }}
                   />
-                ) : null}
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-100 to-green-50">
-                  <span className="text-4xl">📷</span>
-                  <span className="absolute bottom-2 text-xs text-muted-foreground">Image placeholder</span>
-                </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-100 to-green-50">
+                    <span className="text-4xl">📷</span>
+                    <span className="absolute bottom-2 text-xs text-muted-foreground">Image placeholder</span>
+                  </div>
+                )}
+                {product.image && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-100 to-green-50" style={{ display: 'none' }}>
+                    <span className="text-4xl">📷</span>
+                    <span className="absolute bottom-2 text-xs text-muted-foreground">Image placeholder</span>
+                  </div>
+                )}
               </div>
               
               {/* Product Info */}
