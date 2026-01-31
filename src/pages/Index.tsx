@@ -6,10 +6,11 @@ import { ScanScreen } from '@/screens/ScanScreen';
 import { DiscoverScreen } from '@/screens/DiscoverScreen';
 import { LeaderboardScreen } from '@/screens/LeaderboardScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
+import { DonationsScreen } from '@/screens/DonationsScreen';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-type TabId = 'scan' | 'discover' | 'leaderboard' | 'profile';
+type TabId = 'scan' | 'discover' | 'leaderboard' | 'donate' | 'profile';
 
 const Index = () => {
   const { 
@@ -127,6 +128,8 @@ const Index = () => {
         return <DiscoverScreen />;
       case 'leaderboard':
         return <LeaderboardScreen />;
+      case 'donate':
+        return <DonationsScreen />;
       case 'profile':
         return <ProfileScreen />;
       default:

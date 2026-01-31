@@ -141,6 +141,119 @@ export async function getLeaderboardStats() {
   return response.json();
 }
 
+// ============ NGOs API ============
+
+export async function getNgos() {
+  const response = await fetch(`${API_BASE_URL}/ngos`);
+  if (!response.ok) throw new Error('Failed to fetch NGOs');
+  return response.json();
+}
+
+export async function getNgo(id: string) {
+  const response = await fetch(`${API_BASE_URL}/ngos/${id}`);
+  if (!response.ok) throw new Error('Failed to fetch NGO');
+  return response.json();
+}
+
+// ============ Sponsors API ============
+
+export async function getSponsors() {
+  const response = await fetch(`${API_BASE_URL}/sponsors`);
+  if (!response.ok) throw new Error('Failed to fetch sponsors');
+  return response.json();
+}
+
+export async function getSponsor(id: string) {
+  const response = await fetch(`${API_BASE_URL}/sponsors/${id}`);
+  if (!response.ok) throw new Error('Failed to fetch sponsor');
+  return response.json();
+}
+
+// ============ Products API ============
+
+export async function getProducts(params?: { category?: string; search?: string; partnerOnly?: boolean }) {
+  const query = new URLSearchParams();
+  if (params?.category) query.set('category', params.category);
+  if (params?.search) query.set('search', params.search);
+  if (params?.partnerOnly) query.set('partnerOnly', 'true');
+
+  const response = await fetch(`${API_BASE_URL}/products?${query}`);
+  if (!response.ok) throw new Error('Failed to fetch products');
+  return response.json();
+}
+
+export async function getProduct(id: string) {
+  const response = await fetch(`${API_BASE_URL}/products/${id}`);
+  if (!response.ok) throw new Error('Failed to fetch product');
+  return response.json();
+}
+
+export async function getProductAlternatives(id: string) {
+  const response = await fetch(`${API_BASE_URL}/products/${id}/alternatives`);
+  if (!response.ok) throw new Error('Failed to fetch alternatives');
+  return response.json();
+}
+
+// ============ Pledges API ============
+
+export async function createPledge(ngoId: string, points: number) {
+  return fetchWithAuth('/pledges', {
+    method: 'POST',
+    body: JSON.stringify({ ngoId, points }),
+  });
+}
+
+export async function getPledges(status?: string) {
+  const query = status ? `?status=${status}` : '';
+  return fetchWithAuth(`/pledges${query}`);
+}
+
+export async function getPledgeStats() {
+  const response = await fetch(`${API_BASE_URL}/pledges/stats`);
+  if (!response.ok) throw new Error('Failed to fetch pledge stats');
+  return response.json();
+}
+
+// ============ Donations API ============
+
+export async function getDonations(limit = 20) {
+  const response = await fetch(`${API_BASE_URL}/donations?limit=${limit}`);
+  if (!response.ok) throw new Error('Failed to fetch donations');
+  return response.json();
+}
+
+export async function getDonationStats() {
+  const response = await fetch(`${API_BASE_URL}/donations/stats`);
+  if (!response.ok) throw new Error('Failed to fetch donation stats');
+  return response.json();
+}
+
+export async function getDonationByTx(txSignature: string) {
+  const response = await fetch(`${API_BASE_URL}/donations/tx/${txSignature}`);
+  if (!response.ok) throw new Error('Failed to fetch donation');
+  return response.json();
+}
+
+// ============ Points API ============
+
+export async function getPointsBalance() {
+  return fetchWithAuth('/points/balance');
+}
+
+export async function captureProduct(productId: string, actionType?: string, selectedAlternativeId?: string) {
+  return fetchWithAuth('/points/capture', {
+    method: 'POST',
+    body: JSON.stringify({ productId, actionType, selectedAlternativeId }),
+  });
+}
+
+export async function selectAlternative(originalProductId: string, alternativeProductId: string) {
+  return fetchWithAuth('/points/select-alternative', {
+    method: 'POST',
+    body: JSON.stringify({ originalProductId, alternativeProductId }),
+  });
+}
+
 // ============ Health Check ============
 
 export async function checkApiHealth() {

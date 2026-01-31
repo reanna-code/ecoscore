@@ -6,6 +6,13 @@ import { initializeFirebase } from './config/firebase.js';
 import userRoutes from './routes/users.js';
 import friendRoutes from './routes/friends.js';
 import leaderboardRoutes from './routes/leaderboard.js';
+import ngoRoutes from './routes/ngos.js';
+import sponsorRoutes from './routes/sponsors.js';
+import productRoutes from './routes/products.js';
+import pledgeRoutes from './routes/pledges.js';
+import donationRoutes from './routes/donations.js';
+import pointsRoutes from './routes/points.js';
+import adminRoutes from './routes/admin.js';
 
 // Load environment variables
 dotenv.config();
@@ -63,6 +70,13 @@ app.get('/api/health', (req, res) => {
 app.use('/api/users', userRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/ngos', ngoRoutes);
+app.use('/api/sponsors', sponsorRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/pledges', pledgeRoutes);
+app.use('/api/donations', donationRoutes);
+app.use('/api/points', pointsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

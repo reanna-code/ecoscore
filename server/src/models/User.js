@@ -8,7 +8,7 @@ const badgeSchema = new mongoose.Schema({
   icon: String,
   category: {
     type: String,
-    enum: ['streak', 'swap', 'local', 'donation', 'challenge', 'scan'],
+    enum: ['streak', 'swap', 'local', 'donation', 'challenge', 'capture'],
     default: 'swap'
   },
   earnedAt: { type: Date, default: Date.now }

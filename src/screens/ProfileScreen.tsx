@@ -1,38 +1,25 @@
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
 import { EcoScoreBar } from '@/components/EcoScoreBadge';
 import { BadgeDisplay } from '@/components/BadgeDisplay';
 import { Button } from '@/components/Button';
 import { Mascot } from '@/components/Mascot';
-import { mockOrganizations } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Heart, 
-  Settings, 
-  Flame, 
-  Gift, 
-  ChevronRight, 
+import {
+  Settings,
+  Flame,
+  Gift,
+  ChevronRight,
   TrendingUp,
   Check,
   ArrowLeft,
   LogOut,
-  Copy,
-  X
+  Copy
 } from 'lucide-react';
-
-type ProfileTab = 'overview' | 'donate' | 'settings';
 
 export function ProfileScreen() {
   const { userData, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
-  const [donationStep, setDonationStep] = useState<'select' | 'org' | 'confirm' | 'success'>('select');
-  const [selectedPoints, setSelectedPoints] = useState<number | null>(null);
-  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-
-  const pointOptions = [100, 250, 500, 1000];
-  const pointsToDollars = (points: number) => (points / 100).toFixed(2);
 
   // Use real user data or fallback
   const user = userData || {
@@ -43,21 +30,6 @@ export function ProfileScreen() {
     streakCount: 0,
     badges: [],
     friendCode: 'ECO-XXXX-XXXX',
-  };
-
-  const handleDonate = () => {
-    setActiveTab('donate');
-    setDonationStep('select');
-  };
-
-  const handleBack = () => {
-    if (donationStep === 'org') setDonationStep('select');
-    else if (donationStep === 'confirm') setDonationStep('org');
-    else setActiveTab('overview');
-  };
-
-  const handleConfirmDonation = () => {
-    setDonationStep('success');
   };
 
   const handleCopyFriendCode = () => {
@@ -135,130 +107,6 @@ export function ProfileScreen() {
     );
   }
 
-  if (activeTab === 'donate') {
-    return (
-      <div className="min-h-screen bg-background pb-24">
-        {/* header */}
-        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg border-b border-border">
-          <div className="flex items-center gap-3 p-4">
-            {donationStep !== 'success' && (
-              <button
-                onClick={handleBack}
-                className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-            )}
-            <h1 className="font-semibold text-lg">
-              {donationStep === 'success' ? 'donation complete' : 'donate points'}
-            </h1>
-          </div>
-        </header>
-
-        <div className="p-4">
-          {donationStep === 'select' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="text-center">
-                <p className="text-muted-foreground">you have</p>
-                <p className="text-4xl font-bold text-primary">{user.pointsBalance.toLocaleString()}</p>
-                <p className="text-muted-foreground">points available</p>
-              </div>
-
-              <div>
-                <h2 className="font-semibold mb-3">choose amount</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  {pointOptions.map((pts) => (
-                    <button
-                      key={pts}
-                      onClick={() => {
-                        setSelectedPoints(pts);
-                        setDonationStep('org');
-                      }}
-                      disabled={pts > user.pointsBalance}
-                      className={cn(
-                        'p-4 rounded-2xl border-2 transition-all text-center',
-                        pts <= user.pointsBalance
-                          ? 'border-border hover:border-primary bg-card'
-                          : 'border-border bg-muted opacity-50 cursor-not-allowed'
-                      )}
-                    >
-                      <p className="text-xl font-bold text-foreground">{pts}</p>
-                      <p className="text-sm text-muted-foreground">= ${pointsToDollars(pts)}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {donationStep === 'org' && (
-            <div className="space-y-4 animate-fade-in">
-              <h2 className="font-semibold">choose organization</h2>
-              {mockOrganizations.map((org) => (
-                <button
-                  key={org.id}
-                  onClick={() => {
-                    setSelectedOrg(org.id);
-                    setDonationStep('confirm');
-                  }}
-                  className="w-full p-4 rounded-2xl bg-card hover:bg-secondary transition-all text-left"
-                >
-                  <h3 className="font-semibold text-foreground">{org.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{org.description}</p>
-                  <div className="flex gap-2 mt-2">
-                    {org.trustBadges.map((badge) => (
-                      <span
-                        key={badge}
-                        className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary"
-                      >
-                        {badge}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {donationStep === 'confirm' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="p-6 rounded-2xl bg-card text-center">
-                <p className="text-muted-foreground">donating</p>
-                <p className="text-4xl font-bold text-primary mt-2">${pointsToDollars(selectedPoints!)}</p>
-                <p className="text-sm text-muted-foreground mt-1">({selectedPoints} points)</p>
-                <p className="mt-4 font-medium text-foreground">
-                  to {mockOrganizations.find((o) => o.id === selectedOrg)?.name}
-                </p>
-              </div>
-
-              <Button onClick={handleConfirmDonation} className="w-full">
-                confirm donation
-              </Button>
-            </div>
-          )}
-
-          {donationStep === 'success' && (
-            <div className="flex flex-col items-center justify-center py-12 text-center animate-slide-up">
-              <div className="animate-celebrate">
-                <Mascot size="xl" mood="excited" />
-              </div>
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mt-6">
-                <Check className="w-8 h-8 text-primary" />
-              </div>
-              <h2 className="text-xl font-bold text-foreground mt-4">thank you!</h2>
-              <p className="text-muted-foreground mt-2 max-w-[260px]">
-                your donation of ${pointsToDollars(selectedPoints!)} has been sent. donations feel good. do it again soon.
-              </p>
-              <Button onClick={() => setActiveTab('overview')} className="mt-6">
-                back to profile
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* header */}
@@ -310,11 +158,7 @@ export function ProfileScreen() {
         </section>
 
         {/* quick actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="secondary" onClick={handleDonate} className="justify-start">
-            <Heart className="w-4 h-4 mr-2" />
-            donate points
-          </Button>
+        <div className="grid grid-cols-1 gap-3">
           <Button variant="secondary" className="justify-start">
             <Gift className="w-4 h-4 mr-2" />
             share progress
