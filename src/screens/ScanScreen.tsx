@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/Button';
 import { Camera, Upload, X, Zap, Image as ImageIcon, Plus, Trash2, Loader2 } from 'lucide-react';
 import { AnalysisResultsScreen } from './AnalysisResultsScreen';
@@ -12,9 +12,13 @@ export function ScanScreen() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<GeminiAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -31,6 +35,75 @@ export function ScanScreen() {
     // Reset input
     e.target.value = '';
   };
+
+  const handleOpenCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      setStream(mediaStream);
+      setShowCamera(true);
+      setError(null);
+    } catch (err) {
+      console.error('Camera access error:', err);
+      setError('Unable to access camera. Please check permissions or use upload instead.');
+      // Fallback to file input
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const handleCloseCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  const handleCapture = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    
+    if (!context) return;
+
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw video frame to canvas
+    context.drawImage(video, 0, 0);
+    
+    // Convert to base64
+    const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+    
+    // Add to captured images
+    setCapturedImages([...capturedImages, base64Image]);
+    
+    // Close camera if we've reached the limit
+    if (capturedImages.length + 1 >= 4) {
+      handleCloseCamera();
+    }
+  };
+
+  // Setup video stream when camera is shown
+  useEffect(() => {
+    if (showCamera && stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [showCamera, stream]);
+
+  // Cleanup stream on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
 
   const handleRemoveImage = (index: number) => {
     setCapturedImages(capturedImages.filter((_, i) => i !== index));
@@ -70,6 +143,48 @@ export function ScanScreen() {
     setCapturedImages([]);
     setError(null);
   };
+
+  // Show camera view
+  if (showCamera) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col">
+        {/* Camera preview */}
+        <div className="relative flex-1">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+          <canvas ref={canvasRef} className="hidden" />
+          
+          {/* Camera controls overlay */}
+          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent">
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                variant="outline"
+                onClick={handleCloseCamera}
+                className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+              >
+                <X className="w-5 h-5 mr-2" />
+                cancel
+              </Button>
+              <button
+                onClick={handleCapture}
+                className="w-20 h-20 rounded-full bg-white border-4 border-white/30 hover:scale-105 transition-transform"
+                disabled={capturedImages.length >= 4}
+              >
+                <Camera className="w-8 h-8 mx-auto text-black" />
+              </button>
+              <div className="w-24 text-center text-white text-sm">
+                {capturedImages.length}/4
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show results screen if we have analysis
   if (analysisResult) {
@@ -189,7 +304,7 @@ export function ScanScreen() {
               upload
             </Button>
             <Button
-              onClick={() => cameraInputRef.current?.click()}
+              onClick={handleOpenCamera}
               className="flex-1 h-14"
             >
               <Camera className="w-5 h-5 mr-2" />
@@ -201,7 +316,7 @@ export function ScanScreen() {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={handleOpenCamera}
                 className="flex-1"
                 disabled={capturedImages.length >= 4}
               >
