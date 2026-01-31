@@ -246,4 +246,38 @@ router.get('/balance', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/points/dev-grant
+ * DEV ONLY: Grant test points to a user
+ */
+router.post('/dev-grant', authenticateToken, async (req, res) => {
+  // Only allow in development
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ success: false, error: 'Not allowed in production' });
+  }
+
+  try {
+    const { amount = 1000 } = req.body;
+
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    user.pointsBalance += amount;
+    user.totalPointsEarned += amount;
+    await user.save();
+
+    res.json({
+      success: true,
+      granted: amount,
+      newBalance: user.pointsBalance,
+      message: `Granted ${amount} test points`
+    });
+  } catch (error) {
+    console.error('Error granting points:', error);
+    res.status(500).json({ success: false, error: 'Failed to grant points' });
+  }
+});
+
 export default router;

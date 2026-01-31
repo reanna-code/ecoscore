@@ -12,24 +12,24 @@ describe("ecoscore_donation", () => {
   const program = anchor.workspace
     .ecoscoreDonation as Program<EcoscoreDonation>;
 
-  // Derive PDA addresses (v2 seeds)
+  // Derive PDA addresses (v3 seeds for fresh deployment)
   const [configPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("config_v2")],
+    [Buffer.from("config_v3")],
     program.programId
   );
 
   const [ngoRegistryPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("ngo_registry_v2")],
+    [Buffer.from("ngo_registry_v3")],
     program.programId
   );
 
   const [escrowVaultPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("escrow_v2")],
+    [Buffer.from("escrow_v3")],
     program.programId
   );
 
   const [sponsorRegistryPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("sponsor_registry_v2")],
+    [Buffer.from("sponsor_registry_v3")],
     program.programId
   );
 

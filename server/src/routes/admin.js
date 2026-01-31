@@ -1,4 +1,6 @@
 import express from 'express';
+import anchor from '@coral-xyz/anchor';
+const { BN } = anchor;
 import { processWeeklyBatch, getCurrentWeekNumber, aggregatePledges } from '../services/batchProcessor.js';
 import { getSolanaClient } from '../services/solanaClient.js';
 
@@ -8,6 +10,10 @@ const router = express.Router();
 const ADMIN_KEY = process.env.ADMIN_KEY || 'ecoscore-admin-2026';
 
 function checkAdminKey(req, res, next) {
+  // Skip auth in development
+  if (process.env.NODE_ENV !== 'production') {
+    return next();
+  }
   const key = req.headers['x-admin-key'];
   if (key !== ADMIN_KEY) {
     return res.status(401).json({ success: false, error: 'Invalid admin key' });
@@ -85,7 +91,7 @@ router.post('/batch/process', checkAdminKey, async (req, res) => {
  */
 router.post('/batch/process-solana', checkAdminKey, async (req, res) => {
   try {
-    const { weekNumber, cluster = 'localnet' } = req.body;
+    const { weekNumber, cluster = 'devnet' } = req.body;
 
     // Initialize Solana client
     const solanaClient = await getSolanaClient(cluster);
@@ -187,6 +193,47 @@ router.get('/stats', checkAdminKey, async (req, res) => {
     });
   } catch (error) {
     console.error('Stats error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/vault/deposit
+ * DEV ONLY: Deposit SOL into the escrow vault
+ */
+router.post('/vault/deposit', checkAdminKey, async (req, res) => {
+  try {
+    const { amount = 0.5, cluster = 'devnet' } = req.body;
+
+    const solanaClient = await getSolanaClient(cluster);
+
+    // Get the deposit method from the program
+    const amountLamports = Math.floor(amount * 1_000_000_000);
+
+    const { configPda, sponsorRegistryPda, escrowVaultPda } = solanaClient.getPdas();
+
+    const tx = await solanaClient.program.methods
+      .deposit(new BN(amountLamports))
+      .accountsPartial({
+        sponsor: solanaClient.wallet.publicKey,
+        config: configPda,
+        sponsorRegistry: sponsorRegistryPda,
+        escrowVault: escrowVaultPda,
+      })
+      .signers([solanaClient.wallet])
+      .rpc();
+
+    const newBalance = await solanaClient.getVaultBalance();
+
+    res.json({
+      success: true,
+      message: `Deposited ${amount} SOL`,
+      txSignature: tx,
+      explorerUrl: `https://explorer.solana.com/tx/${tx}?cluster=${cluster}`,
+      vaultBalance: newBalance
+    });
+  } catch (error) {
+    console.error('Vault deposit error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
