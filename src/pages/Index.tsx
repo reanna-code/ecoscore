@@ -37,7 +37,6 @@ const Index = () => {
   }, [isAuthenticated]);
 
   const handleOnboardingComplete = () => {
-    localStorage.setItem('ecoscore_onboarding_complete', 'true');
     setShowOnboarding(false);
   };
 
