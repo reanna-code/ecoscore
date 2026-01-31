@@ -30,6 +30,7 @@ const slides = [
 ];
 
 export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
+  const [showWelcome, setShowWelcome] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showNotificationAsk, setShowNotificationAsk] = useState(false);
 
@@ -44,6 +45,33 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const handleNotificationChoice = () => {
     onComplete();
   };
+
+  // Welcome/splash screen
+  if (showWelcome) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-sm text-center space-y-8">
+          {/* Logo placeholder */}
+          <div className="flex justify-center">
+            <div className="w-32 h-32 rounded-3xl bg-gradient-nature flex items-center justify-center shadow-elevated">
+              <span className="text-6xl font-bold text-white">e</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold text-foreground">welcome to ecoscore</h1>
+            <p className="text-muted-foreground">
+              make smarter, greener choices. one scan at a time.
+            </p>
+          </div>
+
+          <Button onClick={() => setShowWelcome(false)} className="w-full">
+            let's go
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (showNotificationAsk) {
     return (
@@ -108,6 +136,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       <div className="p-6 space-y-6">
         {/* dots */}
         <div className="flex items-center justify-center gap-2">
+          {/* Welcome dot (always inactive since we're past it) */}
+          <div className="w-2 h-2 rounded-full bg-primary opacity-50" />
           {slides.map((_, i) => (
             <button
               key={i}

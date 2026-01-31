@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
 
 @layer base {
   :root {
@@ -257,6 +257,69 @@
 
 .animate-celebrate {
   animation: celebrate 0.6s ease-in-out;
+}
+
+@keyframes mascot-jump {
+  0%, 100% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(-24px) scale(1.05); }
+  50% { transform: translateY(-12px) scale(1.02); }
+  75% { transform: translateY(-20px) scale(1.04); }
+}
+
+@keyframes mascot-sad {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+@keyframes mascot-tear {
+  0% { opacity: 0; transform: translateY(-3px) scale(0.8); }
+  30% { opacity: 1; }
+  100% { opacity: 0.6; transform: translateY(12px) scale(1.1); }
+}
+
+.animate-mascot-jump {
+  animation: mascot-jump 0.8s ease-in-out infinite;
+}
+
+.animate-mascot-sad {
+  animation: mascot-sad 2s ease-in-out infinite;
+}
+
+.animate-mascot-tear {
+  animation: mascot-tear 1.5s ease-in-out infinite;
+}
+
+@keyframes confetti {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes rain {
+  0% {
+    transform: translateY(-10vh);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+.animate-rain {
+  animation: rain linear infinite;
+}
+
+.animate-confetti {
+  animation: confetti linear forwards;
 }
 
 .animate-slide-up {
