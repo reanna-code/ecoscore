@@ -19,7 +19,7 @@ We deliberately chose a **hybrid approach** — not everything benefits from bei
 │   ────────────────────                    ─────────────────                  │
 │   • User accounts                         • Actual donations                 │
 │   • Point accumulation                    • NGO whitelist                   │
-│   • Product scan history                  • Batch receipts                  │
+│   • Product capture history               • Batch receipts                  │
 │   • Pledge intentions                     • Impact Certificates             │
 │                                                                              │
 │   WHY:                                    WHY:                               │
@@ -39,8 +39,8 @@ We deliberately chose a **hybrid approach** — not everything benefits from bei
 
 **Why not put everything on-chain?**
 
-If we minted a token for every product scan:
-- 1,000 users × 10 scans/week = 10,000 transactions/week
+If we minted a token for every product capture:
+- 1,000 users × 10 captures/week = 10,000 transactions/week
 - Every user MUST have a Solana wallet
 - Every user MUST understand crypto
 - 90% of potential users never sign up
@@ -63,7 +63,7 @@ This project was built specifically to leverage Solana's strengths. Here's how e
 │                     WHY LOW FEES ARE CRITICAL                                │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  User scans a product → Earns ~$0.05 worth of points                        │
+│  User captures a product → Earns ~$0.05 worth of points                     │
 │                                                                              │
 │  ON ETHEREUM:                     ON SOLANA:                                 │
 │  ┌─────────────────────┐          ┌─────────────────────┐                   │
@@ -207,7 +207,7 @@ This project was built specifically to leverage Solana's strengths. Here's how e
 
 Ecoscore helps consumers make sustainable shopping decisions:
 
-1. **Scan or paste** a product URL/barcode
+1. **Capture or paste** a product URL or take a photo
 2. **Get an eco-score** based on materials, sourcing, and carbon footprint
 3. **See greener alternatives** from partner brands
 4. **Earn points** for sustainable purchases
@@ -255,7 +255,7 @@ Users can optionally "burn" their contributed points to receive a **soulbound (n
 │                                                                              │
 │   BECAUSE certificates are SOULBOUND:                                       │
 │   • Tied to YOUR wallet forever                                             │
-│   • Proves YOU scanned products and pledged points                         │
+│   • Proves YOU captured products and pledged points                        │
 │   • Builds genuine reputation over time                                    │
 │   • Can't be bought, only earned                                           │
 │                                                                              │
@@ -508,10 +508,11 @@ ecoscore_donation/
 
 ```
 Points → SOL:
-• 1,000 points = 0.05 SOL (~$5 at $100/SOL)
-• Minimum pledge: 1,000 points
+• 100 points = $1 = 0.01 SOL (at $100/SOL)
+• 1,000 points = 0.1 SOL (~$10)
+• Minimum pledge: 500 points ($5)
 
-Formula: lamports = points × 50,000,000 / 1,000
+Formula: lamports = points × 100,000,000 / 1,000
 ```
 
 ---

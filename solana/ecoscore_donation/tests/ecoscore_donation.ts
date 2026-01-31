@@ -28,6 +28,11 @@ describe("ecoscore_donation", () => {
     program.programId
   );
 
+  const [sponsorRegistryPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("sponsor_registry_v2")],
+    program.programId
+  );
+
   // Test accounts
   const admin = provider.wallet;
   const sponsor = Keypair.generate();
@@ -67,6 +72,7 @@ describe("ecoscore_donation", () => {
           admin: admin.publicKey,
           config: configPda,
           ngoRegistry: ngoRegistryPda,
+          sponsorRegistry: sponsorRegistryPda,
           escrowVault: escrowVaultPda,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
@@ -85,6 +91,10 @@ describe("ecoscore_donation", () => {
       // Verify NGO registry is empty
       const registry = await program.account.ngoRegistry.fetch(ngoRegistryPda);
       expect(registry.ngos.length).to.equal(0);
+
+      // Verify sponsor registry is empty
+      const sponsorRegistry = await program.account.sponsorRegistry.fetch(sponsorRegistryPda);
+      expect(sponsorRegistry.sponsors.length).to.equal(0);
     });
 
     it("fails to initialize twice", async () => {
@@ -95,6 +105,7 @@ describe("ecoscore_donation", () => {
             admin: admin.publicKey,
             config: configPda,
             ngoRegistry: ngoRegistryPda,
+            sponsorRegistry: sponsorRegistryPda,
             escrowVault: escrowVaultPda,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
@@ -116,6 +127,7 @@ describe("ecoscore_donation", () => {
         .accounts({
           sponsor: sponsor.publicKey,
           config: configPda,
+          sponsorRegistry: sponsorRegistryPda,
           escrowVault: escrowVaultPda,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
@@ -140,6 +152,7 @@ describe("ecoscore_donation", () => {
         .accounts({
           sponsor: sponsor.publicKey,
           config: configPda,
+          sponsorRegistry: sponsorRegistryPda,
           escrowVault: escrowVaultPda,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
@@ -241,6 +254,106 @@ describe("ecoscore_donation", () => {
       } catch (err: any) {
         expect(err.error.errorCode.code).to.equal("NgoAlreadyExists");
       }
+    });
+  });
+
+  describe("register_sponsor", () => {
+    it("allows admin to register sponsors", async () => {
+      // Register test sponsors (brand partners)
+      await program.methods
+        .registerSponsor(sponsor.publicKey, "Patagonia")
+        .accounts({
+          admin: admin.publicKey,
+          config: configPda,
+          sponsorRegistry: sponsorRegistryPda,
+        })
+        .rpc();
+
+      const registry = await program.account.sponsorRegistry.fetch(sponsorRegistryPda);
+      expect(registry.sponsors.length).to.equal(1);
+      expect(registry.sponsors[0].name).to.equal("Patagonia");
+      expect(registry.sponsors[0].isVerified).to.be.true;
+      expect(registry.sponsors[0].totalDeposited.toNumber()).to.equal(0);
+    });
+
+    it("fails when non-admin tries to register sponsor", async () => {
+      const newSponsor = Keypair.generate();
+
+      try {
+        await program.methods
+          .registerSponsor(newSponsor.publicKey, "Unauthorized Brand")
+          .accounts({
+            admin: unauthorizedUser.publicKey,
+            config: configPda,
+            sponsorRegistry: sponsorRegistryPda,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have thrown an error");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("Unauthorized");
+      }
+    });
+
+    it("fails when adding duplicate sponsor", async () => {
+      try {
+        await program.methods
+          .registerSponsor(sponsor.publicKey, "Duplicate Brand")
+          .accounts({
+            admin: admin.publicKey,
+            config: configPda,
+            sponsorRegistry: sponsorRegistryPda,
+          })
+          .rpc();
+        expect.fail("Should have thrown an error");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("SponsorAlreadyExists");
+      }
+    });
+
+    it("tracks sponsor deposits after registration", async () => {
+      const depositAmount = 0.5 * LAMPORTS_PER_SOL;
+
+      await program.methods
+        .deposit(new anchor.BN(depositAmount))
+        .accounts({
+          sponsor: sponsor.publicKey,
+          config: configPda,
+          sponsorRegistry: sponsorRegistryPda,
+          escrowVault: escrowVaultPda,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([sponsor])
+        .rpc();
+
+      const registry = await program.account.sponsorRegistry.fetch(sponsorRegistryPda);
+      const sponsorEntry = registry.sponsors.find(
+        (s) => s.pubkey.toString() === sponsor.publicKey.toString()
+      );
+
+      // Note: Previous deposits (before registration) won't be tracked
+      // This deposit should be tracked
+      expect(sponsorEntry?.totalDeposited.toNumber()).to.be.greaterThan(0);
+      expect(sponsorEntry?.depositCount).to.be.greaterThan(0);
+    });
+  });
+
+  describe("remove_sponsor", () => {
+    it("allows admin to unverify a sponsor", async () => {
+      await program.methods
+        .removeSponsor(sponsor.publicKey)
+        .accounts({
+          admin: admin.publicKey,
+          config: configPda,
+          sponsorRegistry: sponsorRegistryPda,
+        })
+        .rpc();
+
+      const registry = await program.account.sponsorRegistry.fetch(sponsorRegistryPda);
+      const sponsorEntry = registry.sponsors.find(
+        (s) => s.pubkey.toString() === sponsor.publicKey.toString()
+      );
+      expect(sponsorEntry?.isVerified).to.be.false;
     });
   });
 
@@ -487,6 +600,7 @@ describe("ecoscore_donation", () => {
         .accounts({
           sponsor: sponsor.publicKey,
           config: configPda,
+          sponsorRegistry: sponsorRegistryPda,
           escrowVault: escrowVaultPda,
           systemProgram: anchor.web3.SystemProgram.programId,
         })

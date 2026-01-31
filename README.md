@@ -2,7 +2,7 @@
 
 **Make every purchase count for the planet.**
 
-Ecoscore is a sustainability companion that helps shoppers make eco-conscious decisions — whether browsing online or standing in a store aisle. Scan a product, see its environmental impact, discover greener alternatives, and turn your sustainable choices into real donations to climate nonprofits. 
+Ecoscore is a sustainability companion that helps shoppers make eco-conscious decisions — whether browsing online or standing in a store aisle. Take a photo of any product, see its environmental impact, discover greener alternatives, and turn your sustainable choices into real donations to climate nonprofits. 
 
 ---
 
@@ -14,7 +14,7 @@ Consumers want to shop sustainably, but lack the tools to make informed decision
 
 Ecoscore bridges the gap between intention and action:
 
-1. **Scan or Search** — Paste a product URL or take photos in-store
+1. **Capture or Search** — Paste a product URL or take photos in-store
 2. **See the Impact** — Get an instant eco-score based on materials, sourcing, and carbon footprint
 3. **Compare Alternatives** — Discover greener options from verified sustainable brands
 4. **Earn Points** — Accumulate points based on the sustainability of your purchases
@@ -67,7 +67,7 @@ Users can optionally claim a **soulbound (non-transferable) certificate** provin
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   Mobile App    │────▶│  Ecoscore API    │────▶│ Solana Program  │
 │                 │     │                  │     │                 │
-│  • Scan product │     │  • Product data  │     │  • Escrow vault │
+│  • Photo/URL    │     │  • Product data  │     │  • Escrow vault │
 │  • Or paste URL │     │  • Eco-scoring   │     │  • Donations    │
 │  • View scores  │     │  • Points calc   │     │  • On-chain     │
 │  • Donate       │     │  • Brand matches │     │    receipts     │

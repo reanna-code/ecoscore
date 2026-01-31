@@ -13,7 +13,7 @@ This document provides everything frontend developers need to integrate with the
 │                                                                              │
 │  1. TRACK ECOPOINTS (Database)                                               │
 │     • Store user points in your database                                     │
-│     • Award points when users scan sustainable products                     │
+│     • Award points when users capture sustainable products                  │
 │     • Deduct points when users pledge to NGOs                               │
 │                                                                              │
 │  2. MANAGE PLEDGES (Database)                                                │
@@ -31,6 +31,342 @@ This document provides everything frontend developers need to integrate with the
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Product Eco Score (0-100)
+
+The Product Eco Score answers: **"How eco-friendly is THIS product?"**
+
+### Formula
+
+```
+EcoScore = 0.25 × S_packaging + 0.25 × S_materials + 0.20 × S_carbon
+         + 0.15 × S_water + 0.15 × S_ethics
+```
+
+### Scoring Categories
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  1. PACKAGING & RECYCLABILITY (Weight: 25%)                                  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  S_packaging = 0.5 × R + 0.3 × M + 0.2 × W                                  │
+│                                                                              │
+│  R = Recyclability score                                                    │
+│      • Fully recyclable = 100                                               │
+│      • Partially recyclable = 60                                            │
+│      • Non-recyclable = 10                                                  │
+│                                                                              │
+│  M = Material type score                                                    │
+│      • Paper / aluminum / glass = 100                                       │
+│      • Bioplastic = 70                                                      │
+│      • Mixed plastic = 30                                                   │
+│                                                                              │
+│  W = Packaging weight efficiency (0-100, low packaging = higher)            │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  2. MATERIALS & INGREDIENTS (Weight: 25%)                                    │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  S_materials = 0.6 × H + 0.4 × R                                            │
+│                                                                              │
+│  H = Harmful ingredient penalty                                             │
+│      • No harmful ingredients = 100                                         │
+│      • Some flagged ingredients = 50                                        │
+│      • Many flagged = 10                                                    │
+│                                                                              │
+│  R = Renewable/responsibly sourced %                                        │
+│      • FSC wood, organic cotton = 100                                       │
+│      • Petroleum-based synthetics = 20                                      │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  3. CARBON FOOTPRINT & TRANSPORT (Weight: 20%)                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  S_carbon = 100 - min(100, E + T)                                           │
+│                                                                              │
+│  E = Emissions bucket                                                       │
+│      • Low (local, plant-based) = 10                                        │
+│      • Medium = 40                                                          │
+│      • High (global shipping, energy intensive) = 70                        │
+│                                                                              │
+│  T = Transport penalty                                                      │
+│      • Local (<200km) = 0                                                   │
+│      • Domestic = 10                                                        │
+│      • International = 30                                                   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  4. WATER USAGE (Weight: 15%)                                                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  S_water = 100 - W_u                                                        │
+│                                                                              │
+│  W_u = Industry water intensity estimate                                    │
+│      • Low (electronics, refills) = 10                                      │
+│      • Medium (processed foods) = 40                                        │
+│      • High (cotton, meat) = 70-90                                          │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  5. SUPPLY CHAIN ETHICS (Weight: 15%)                                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  S_ethics = 0.5 × C + 0.5 × T                                               │
+│                                                                              │
+│  C = Certifications (Fairtrade, B Corp, FSC, etc.)                          │
+│      • Multiple certifications = 100                                        │
+│      • One certification = 70                                               │
+│      • None = 30                                                            │
+│                                                                              │
+│  T = Transparency                                                           │
+│      • Publishes sourcing & audits = 100                                    │
+│      • Some transparency = 60                                               │
+│      • Vague sustainability claims = 20                                     │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Score Interpretation
+
+| Score Range | Rating | Display |
+|-------------|--------|---------|
+| 85-100 | Excellent | 🌱🌱🌱🌱🌱 |
+| 70-84 | Good | 🌱🌱🌱🌱 |
+| 55-69 | Moderate | 🌱🌱🌱 |
+| 40-54 | Below Average | 🌱🌱 |
+| 0-39 | Poor | 🌱 |
+
+### Implementation
+
+```typescript
+interface ProductScoreInputs {
+  recyclability: number;      // 0-100
+  materialType: number;       // 0-100
+  packagingEfficiency: number;// 0-100
+  harmfulIngredients: number; // 0-100 (100 = none)
+  renewableMaterials: number; // 0-100
+  emissionsBucket: number;    // 10, 40, or 70
+  transportPenalty: number;   // 0, 10, or 30
+  waterIntensity: number;     // 0-100
+  certifications: number;     // 0-100
+  transparency: number;       // 0-100
+}
+
+function calculateEcoScore(inputs: ProductScoreInputs): number {
+  const S_packaging = 0.5 * inputs.recyclability
+                    + 0.3 * inputs.materialType
+                    + 0.2 * inputs.packagingEfficiency;
+
+  const S_materials = 0.6 * inputs.harmfulIngredients
+                    + 0.4 * inputs.renewableMaterials;
+
+  const S_carbon = 100 - Math.min(100, inputs.emissionsBucket + inputs.transportPenalty);
+
+  const S_water = 100 - inputs.waterIntensity;
+
+  const S_ethics = 0.5 * inputs.certifications + 0.5 * inputs.transparency;
+
+  return Math.round(
+    0.25 * S_packaging +
+    0.25 * S_materials +
+    0.20 * S_carbon +
+    0.15 * S_water +
+    0.15 * S_ethics
+  );
+}
+```
+
+---
+
+## User Eco Points (Behavior-Based)
+
+User Eco Points answer: **"How good are YOUR choices over time?"**
+
+Points reward **improvement**, not perfection.
+
+### Points Per Capture Formula
+
+```
+Points = B × D × L × S
+```
+
+Where:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  B = BASE POINTS                                                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  B = max(10, EcoScore_chosen - EcoScore_baseline)                           │
+│                                                                              │
+│  • Baseline = category average (typically 40-50)                            │
+│  • Minimum 10 points per capture (encourages engagement)                    │
+│  • If user chooses product with score 75 vs baseline 45 → B = 30           │
+│                                                                              │
+│  Example base points:                                                       │
+│  • Capture only (no choice): 10 points                                     │
+│  • Choose same product: 10 points                                          │
+│  • Choose slightly better (+10 score): 10 points                           │
+│  • Choose much better (+30 score): 30 points                               │
+│  • Choose excellent alternative (+50 score): 50 points                     │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  D = DECISION MULTIPLIER                                                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Action                              Multiplier                              │
+│  ────────────────────────────────────────────────                           │
+│  Just capturing (info only)          0.5×                                   │
+│  Kept same product                   0.8×                                   │
+│  Chose slightly better alternative   1.0×                                   │
+│  Chose much better alternative       1.3×                                   │
+│  Chose excellent alternative         1.5×                                   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  L = LOCAL BONUS MULTIPLIER                                                  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Purchase Type                       Multiplier                              │
+│  ────────────────────────────────────────────────                           │
+│  Non-local product                   1.0×                                   │
+│  Local brand                         1.25×                                  │
+│  Local refill/zero-waste             1.5×                                   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  S = STREAK MULTIPLIER                                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  S = 1 + min(0.5, 0.1 × weekly_streak)                                      │
+│                                                                              │
+│  Week 1: 1.1×                                                               │
+│  Week 2: 1.2×                                                               │
+│  Week 3: 1.3×                                                               │
+│  Week 4: 1.4×                                                               │
+│  Week 5+: 1.5× (cap)                                                        │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Points to Donation Conversion
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         POINTS TO DONATION                                   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  100 POINTS = $1.00 DONATION                                                │
+│                                                                              │
+│  Minimum donation: 500 points = $5.00                                       │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Typical User Scenarios
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  CASUAL USER (5 captures/week, 2 switches)                                   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  5 captures × 10 base × 0.5 (info only) × 1.0 × 1.1 = 27 points            │
+│  2 switches × 30 base × 1.3 × 1.0 × 1.1 = 86 points                        │
+│  Weekly total: ~113 points                                                  │
+│                                                                              │
+│  Time to $5 donation: ~4.5 weeks                                            │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  ACTIVE USER (15 captures/week, 8 switches, some local)                      │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  7 captures × 10 × 0.5 × 1.0 × 1.2 = 42 points                             │
+│  5 switches × 35 × 1.3 × 1.0 × 1.2 = 273 points                            │
+│  3 local switches × 40 × 1.5 × 1.25 × 1.2 = 270 points                     │
+│  Weekly total: ~585 points                                                  │
+│                                                                              │
+│  Time to $5 donation: <1 week                                               │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  POWER USER (daily captures, always chooses better, 5-week streak)           │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  20 switches × 45 × 1.5 × 1.25 × 1.5 = 2,531 points/week                   │
+│                                                                              │
+│  Time to $5 donation: 2 days                                                │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation
+
+```typescript
+interface CaptureAction {
+  productEcoScore: number;      // 0-100
+  categoryBaseline: number;     // typically 40-50
+  actionType: 'capture_only' | 'kept_same' | 'slight_better' | 'much_better' | 'excellent';
+  isLocal: boolean;
+  isRefill: boolean;
+  weeklyStreak: number;
+}
+
+function calculateEcoPoints(action: CaptureAction): number {
+  // Base points
+  const scoreDiff = action.productEcoScore - action.categoryBaseline;
+  const B = Math.max(10, scoreDiff);
+
+  // Decision multiplier
+  const decisionMultipliers: Record<string, number> = {
+    'capture_only': 0.5,
+    'kept_same': 0.8,
+    'slight_better': 1.0,
+    'much_better': 1.3,
+    'excellent': 1.5,
+  };
+  const D = decisionMultipliers[action.actionType];
+
+  // Local multiplier
+  let L = 1.0;
+  if (action.isRefill) L = 1.5;
+  else if (action.isLocal) L = 1.25;
+
+  // Streak multiplier (caps at 1.5)
+  const S = 1 + Math.min(0.5, 0.1 * action.weeklyStreak);
+
+  return Math.round(B * D * L * S);
+}
+
+function pointsToDollars(points: number): number {
+  return points / 100;  // 100 points = $1
+}
+```
+
+### Bonus Points Events
+
+| Event | Points |
+|-------|--------|
+| First capture of the day | +5 bonus |
+| Complete weekly challenge | +100 bonus |
+| Invite friend who signs up | +250 bonus |
+| Complete profile | +150 bonus (one-time) |
+| First donation made | +200 bonus (one-time) |
 
 ---
 
@@ -86,7 +422,7 @@ CREATE TABLE pledges (
     status          VARCHAR(20) DEFAULT 'pending', -- pending, processed, failed
     created_at      TIMESTAMP DEFAULT NOW(),
 
-    CONSTRAINT positive_points CHECK (points >= 1000) -- Minimum 1000 points
+    CONSTRAINT positive_points CHECK (points >= 500) -- Minimum 500 points ($5)
 );
 
 -- Index for weekly batch processing
@@ -121,13 +457,88 @@ CREATE TABLE point_transactions (
     id              SERIAL PRIMARY KEY,
     user_id         INTEGER REFERENCES users(id),
     amount          INTEGER NOT NULL,             -- Positive = earned, Negative = spent
-    type            VARCHAR(20) NOT NULL,         -- 'scan', 'pledge', 'bonus', 'refund'
-    reference_id    INTEGER,                      -- Related pledge_id or scan_id
+    type            VARCHAR(20) NOT NULL,         -- 'capture', 'pledge', 'bonus', 'refund'
+    reference_id    INTEGER,                      -- Related pledge_id or capture_id
     description     VARCHAR(255),
     created_at      TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_point_transactions_user ON point_transactions(user_id, created_at);
+
+-- ============================================================================
+-- PRODUCTS TABLE
+-- ============================================================================
+-- Product catalog (both regular and partner brand products)
+
+CREATE TABLE products (
+    id              SERIAL PRIMARY KEY,
+    name            VARCHAR(255) NOT NULL,
+    brand           VARCHAR(128),
+    barcode         VARCHAR(64) UNIQUE,          -- UPC/EAN barcode
+    category        VARCHAR(64),                 -- 'cleaning', 'personal_care', 'clothing', etc.
+    eco_score       CHAR(1) NOT NULL,            -- A, B, C, D, E, or F
+    is_partner      BOOLEAN DEFAULT FALSE,       -- Is this from a partner brand?
+    sponsor_id      INTEGER REFERENCES sponsors(id), -- Link to sponsor if partner
+    image_url       VARCHAR(255),
+    product_url     VARCHAR(255),                -- Link to purchase
+    created_at      TIMESTAMP DEFAULT NOW(),
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_products_barcode ON products(barcode);
+CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX idx_products_sponsor ON products(sponsor_id);
+
+-- ============================================================================
+-- PRODUCT_ALTERNATIVES TABLE
+-- ============================================================================
+-- Maps captured products to sustainable alternatives from partner brands
+
+CREATE TABLE product_alternatives (
+    id                  SERIAL PRIMARY KEY,
+    original_product_id INTEGER REFERENCES products(id),  -- The captured product
+    alternative_id      INTEGER REFERENCES products(id),  -- The sustainable alternative
+    relevance_score     INTEGER DEFAULT 100,              -- How good a match (100 = perfect)
+    created_at          TIMESTAMP DEFAULT NOW(),
+
+    UNIQUE(original_product_id, alternative_id)
+);
+
+CREATE INDEX idx_alternatives_original ON product_alternatives(original_product_id);
+
+-- ============================================================================
+-- CAPTURES TABLE
+-- ============================================================================
+-- Records every product capture by users (photo or URL)
+
+CREATE TABLE captures (
+    id              SERIAL PRIMARY KEY,
+    user_id         INTEGER REFERENCES users(id),
+    product_id      INTEGER REFERENCES products(id),
+    capture_type    VARCHAR(20) NOT NULL,        -- 'url', 'photo'
+    points_earned   INTEGER NOT NULL DEFAULT 10, -- Points for this capture
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_captures_user ON captures(user_id, created_at);
+
+-- ============================================================================
+-- ALTERNATIVE_SELECTIONS TABLE
+-- ============================================================================
+-- Records when users choose a sustainable alternative
+
+CREATE TABLE alternative_selections (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER REFERENCES users(id),
+    capture_id          INTEGER REFERENCES captures(id),
+    original_product_id INTEGER REFERENCES products(id),
+    selected_product_id INTEGER REFERENCES products(id),  -- The alternative they chose
+    points_earned       INTEGER NOT NULL,                 -- Points for this switch
+    clicked_purchase    BOOLEAN DEFAULT FALSE,            -- Did they click to buy?
+    created_at          TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_selections_user ON alternative_selections(user_id, created_at);
 ```
 
 ### Prisma Schema (Alternative)
@@ -156,6 +567,8 @@ model User {
 
   pledges       Pledge[]
   transactions  PointTransaction[]
+  captures      Capture[]
+  selections    AlternativeSelection[]
 }
 
 model Ngo {
@@ -203,12 +616,81 @@ model PointTransaction {
   id          Int       @id @default(autoincrement())
   userId      Int
   amount      Int       // Positive = earned, Negative = spent
-  type        String    // 'scan', 'pledge', 'bonus', 'refund'
+  type        String    // 'capture', 'pledge', 'bonus', 'refund'
   referenceId Int?
   description String?
   createdAt   DateTime  @default(now())
 
   user        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String
+  brand       String?
+  barcode     String?   @unique
+  category    String?
+  ecoScore    String    @db.Char(1)  // A, B, C, D, E, or F
+  isPartner   Boolean   @default(false)
+  sponsorId   Int?
+  imageUrl    String?
+  productUrl  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sponsor     Sponsor?  @relation(fields: [sponsorId], references: [id])
+  captures    Capture[]
+  alternativesFrom  ProductAlternative[] @relation("OriginalProduct")
+  alternativesTo    ProductAlternative[] @relation("AlternativeProduct")
+
+  @@index([barcode])
+  @@index([category])
+  @@index([sponsorId])
+}
+
+model ProductAlternative {
+  id                Int       @id @default(autoincrement())
+  originalProductId Int
+  alternativeId     Int
+  relevanceScore    Int       @default(100)
+  createdAt         DateTime  @default(now())
+
+  originalProduct   Product   @relation("OriginalProduct", fields: [originalProductId], references: [id])
+  alternative       Product   @relation("AlternativeProduct", fields: [alternativeId], references: [id])
+
+  @@unique([originalProductId, alternativeId])
+  @@index([originalProductId])
+}
+
+model Capture {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  productId    Int
+  captureType  String    // 'url', 'photo'
+  pointsEarned Int       @default(10)
+  createdAt    DateTime  @default(now())
+
+  user         User      @relation(fields: [userId], references: [id])
+  product      Product   @relation(fields: [productId], references: [id])
+  selections   AlternativeSelection[]
+
+  @@index([userId, createdAt])
+}
+
+model AlternativeSelection {
+  id                Int       @id @default(autoincrement())
+  userId            Int
+  captureId         Int
+  originalProductId Int
+  selectedProductId Int
+  pointsEarned      Int
+  clickedPurchase   Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+
+  user              User      @relation(fields: [userId], references: [id])
+  capture           Capture   @relation(fields: [captureId], references: [id])
 
   @@index([userId, createdAt])
 }
@@ -222,12 +704,12 @@ model PointTransaction {
 
 ```typescript
 // POST /api/points/award
-// Award points to a user (called after product scan)
+// Award points to a user (called after product capture)
 
 interface AwardPointsRequest {
   userId: number;
   points: number;
-  reason: string;  // e.g., "Scanned sustainable product: Bamboo Toothbrush"
+  reason: string;  // e.g., "Captured sustainable product: Bamboo Toothbrush"
 }
 
 interface AwardPointsResponse {
@@ -236,7 +718,7 @@ interface AwardPointsResponse {
   transaction: {
     id: number;
     amount: number;
-    type: "scan";
+    type: "capture";
   };
 }
 ```
@@ -262,7 +744,7 @@ interface NgoResponse {
 interface CreatePledgeRequest {
   userId: number;
   ngoId: number;
-  points: number;  // Minimum 1000
+  points: number;  // Minimum 500 ($5)
 }
 
 interface CreatePledgeResponse {
@@ -278,7 +760,7 @@ interface CreatePledgeResponse {
 }
 
 // Validation rules:
-// - points >= 1000 (minimum pledge)
+// - points >= 500 (minimum pledge = $5)
 // - points <= user.pointsBalance
 // - ngo.isActive === true
 ```
@@ -348,7 +830,7 @@ import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import { prisma } from "./prisma";
 
 const PROGRAM_ID = new PublicKey("Ff9wbBku1gd8wEoXej6YMxqiyw6eUEGqzCJBNLoHzTqv");
-const LAMPORTS_PER_1000_POINTS = 50_000_000; // 0.05 SOL per 1000 points
+const LAMPORTS_PER_1000_POINTS = 100_000_000; // 0.1 SOL per 1000 points (100 pts = $1)
 
 export async function processWeeklyBatch() {
   // 1. Calculate current week number (YYYYWW)
@@ -461,15 +943,20 @@ function getWeekNumber(date: Date): number {
 │                         POINTS TO SOL CONVERSION                             │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
+│   100 POINTS = $1.00 = 0.01 SOL (at $100/SOL)                               │
+│                                                                              │
 │   Points      Lamports              SOL            USD (at $100/SOL)         │
 │   ──────────────────────────────────────────────────────────────────         │
-│   1,000   →   50,000,000        →   0.05      →   $5.00                      │
-│   5,000   →   250,000,000       →   0.25      →   $25.00                     │
-│   10,000  →   500,000,000       →   0.50      →   $50.00                     │
-│   100,000 →   5,000,000,000     →   5.00      →   $500.00                    │
+│   100     →   10,000,000        →   0.01      →   $1.00                      │
+│   500     →   50,000,000        →   0.05      →   $5.00   (min donation)     │
+│   1,000   →   100,000,000       →   0.10      →   $10.00                     │
+│   5,000   →   500,000,000       →   0.50      →   $50.00                     │
 │                                                                              │
-│   Formula: lamports = points × 50,000,000 / 1,000                            │
+│   Formula: lamports = points × 10,000,000 / 100                              │
 │            sol = lamports / 1,000,000,000                                    │
+│            usd = points / 100                                                │
+│                                                                              │
+│   Minimum pledge: 500 points ($5.00)                                         │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -477,20 +964,22 @@ function getWeekNumber(date: Date): number {
 ```typescript
 // Utility functions
 
+const LAMPORTS_PER_100_POINTS = 10_000_000; // 0.01 SOL per 100 points
+
 export function pointsToLamports(points: number): number {
-  return (points * 50_000_000) / 1000;
+  return (points * LAMPORTS_PER_100_POINTS) / 100;
 }
 
 export function pointsToSol(points: number): number {
   return pointsToLamports(points) / 1e9;
 }
 
-export function solToUsd(sol: number, solPrice: number = 100): number {
-  return sol * solPrice;
+export function pointsToDollars(points: number): number {
+  return points / 100;  // 100 points = $1
 }
 
-export function pointsToUsd(points: number, solPrice: number = 100): number {
-  return solToUsd(pointsToSol(points), solPrice);
+export function solToUsd(sol: number, solPrice: number = 100): number {
+  return sol * solPrice;
 }
 ```
 
@@ -533,12 +1022,146 @@ async function addNgo(name: string, walletAddress: string) {
 // As of deployment, these NGOs are registered:
 
 const REGISTERED_NGOS = [
-  {
-    name: "Demo Climate Fund",
-    wallet: "46LWMkDrDxX5CLRqvwrkn5tcVikpVqQ6L97rtHCbiFsX"
-  }
-  // Add more as you register them
+  { name: "Greenpeace", wallet: "..." },
+  { name: "Environmental Defense Fund (EDF)", wallet: "..." },
+  { name: "Friends of the Earth", wallet: "..." },
+  { name: "Natural Resources Defense Council (NRDC)", wallet: "..." },
+  { name: "Veritree", wallet: "..." },
+  { name: "Zero Waste Canada", wallet: "..." },
 ];
+```
+
+---
+
+## Sponsor Registry (Brand Partners)
+
+The Solana program now tracks **verified sponsors** (brand partners) who fund the donation pool. This provides public transparency about which brands are contributing.
+
+### Sponsor Registry PDA
+
+```typescript
+const [sponsorRegistryPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("sponsor_registry_v2")],
+  PROGRAM_ID
+);
+```
+
+### Reading Sponsor Data
+
+```typescript
+async function getSponsors(connection: Connection) {
+  const provider = new AnchorProvider(connection, wallet, {});
+  const program = new Program(IDL, PROGRAM_ID, provider);
+
+  const registry = await program.account.sponsorRegistry.fetch(sponsorRegistryPda);
+
+  return registry.sponsors.map((s) => ({
+    name: s.name,
+    address: s.pubkey.toString(),
+    totalDeposited: s.totalDeposited.toNumber() / 1e9, // Convert to SOL
+    depositCount: s.depositCount,
+    lastDeposit: new Date(s.lastDeposit * 1000),
+    isVerified: s.isVerified,
+  }));
+}
+```
+
+### Sponsor Entry Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pubkey` | Pubkey | Sponsor's wallet address |
+| `name` | String | Brand name (max 64 chars) |
+| `totalDeposited` | u64 | Lifetime deposits in lamports |
+| `depositCount` | u32 | Number of deposits made |
+| `lastDeposit` | i64 | Unix timestamp of last deposit |
+| `isVerified` | bool | Whether sponsor is a verified partner |
+
+### Displaying Sponsor Contributions
+
+```typescript
+// components/SponsorLeaderboard.tsx
+
+interface Sponsor {
+  name: string;
+  totalDeposited: number; // in SOL
+  isVerified: boolean;
+}
+
+export function SponsorLeaderboard({ sponsors }: { sponsors: Sponsor[] }) {
+  const sorted = [...sponsors].sort((a, b) => b.totalDeposited - a.totalDeposited);
+
+  return (
+    <div className="sponsor-leaderboard">
+      <h3>Our Partners</h3>
+      <p className="subtitle">Verified brands funding sustainability donations</p>
+      {sorted.map((sponsor, i) => (
+        <div key={sponsor.name} className="sponsor-row">
+          <span className="rank">#{i + 1}</span>
+          <span className="name">
+            {sponsor.name}
+            {sponsor.isVerified && <span className="verified-badge">✓</span>}
+          </span>
+          <span className="amount">{sponsor.totalDeposited.toFixed(2)} SOL</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Current Registered Sponsors
+
+```typescript
+// As of deployment, these sponsors are registered:
+
+const REGISTERED_SPONSORS = [
+  { name: "Patagonia", wallet: "..." },
+  { name: "Allbirds", wallet: "..." },
+  { name: "Tentree", wallet: "..." },
+  { name: "Girlfriend Collective", wallet: "..." },
+  { name: "Pela Case", wallet: "..." },
+  { name: "Seventh Generation", wallet: "..." },
+  { name: "Tom's of Maine", wallet: "..." },
+];
+```
+
+### Database Schema for Sponsors
+
+```sql
+-- ============================================================================
+-- SPONSORS TABLE
+-- ============================================================================
+-- Verified brand partners who fund the donation pool
+-- NOTE: Keep in sync with on-chain SponsorRegistry!
+
+CREATE TABLE sponsors (
+    id              SERIAL PRIMARY KEY,
+    name            VARCHAR(64) NOT NULL,        -- Must match on-chain name
+    wallet_address  VARCHAR(44) UNIQUE NOT NULL, -- Solana pubkey
+    logo_url        VARCHAR(255),
+    website_url     VARCHAR(255),
+    description     TEXT,
+    is_verified     BOOLEAN DEFAULT TRUE,        -- Matches on-chain status
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Prisma Schema Addition
+
+```prisma
+model Sponsor {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(64)
+  walletAddress String    @unique @db.VarChar(44)
+  logoUrl       String?
+  websiteUrl    String?
+  description   String?
+  isVerified    Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  products      Product[]
+}
 ```
 
 ---
@@ -642,14 +1265,36 @@ MIN_PLEDGE_POINTS=1000
 
 ## Checklist for Frontend Team
 
+### Database Setup
 - [ ] Set up database with schema above
-- [ ] Implement user points balance tracking
+- [ ] Seed NGOs table (sync with on-chain registry)
+- [ ] Seed sponsors table (sync with on-chain registry)
+- [ ] Create initial product catalog for demo
+
+### Points System
+- [ ] Implement points earning on capture (+10 points)
+- [ ] Implement points earning on alternative selection (+25-100 based on eco-score)
+- [ ] Track point transactions for audit trail
+- [ ] Implement streak bonuses (optional for MVP)
+
+### Core Features
+- [ ] Product capture UI (photo via Gemini / URL input)
+- [ ] Display eco-score for captured product
+- [ ] Show sustainable alternatives from partner brands
+- [ ] Track alternative selections
+- [ ] User points balance display
+
+### Donations
 - [ ] Create pledge UI with NGO selection
 - [ ] Implement `/api/pledges` endpoint
 - [ ] Create donation history page
 - [ ] Set up weekly cron job for batch processing
 - [ ] Add Solana Explorer links to completed donations
+
+### Sync with Solana
 - [ ] Sync NGO list with on-chain registry
+- [ ] Sync sponsor list with on-chain registry
+- [ ] Display real-time sponsor contribution totals from chain
 
 ---
 

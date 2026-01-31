@@ -44,7 +44,7 @@ Not everything benefits from being on-chain. We deliberately chose what goes whe
 │   │   ─────────────────────             ─────────────────                  ││
 │   │   • User accounts           ✗       • Donation disbursements    ✓     ││
 │   │   • Point accumulation      ✗       • NGO whitelist             ✓     ││
-│   │   • Product scan history    ✗       • Batch receipts            ✓     ││
+│   │   • Product capture history ✗       • Batch receipts            ✓     ││
 │   │   • Pledge intentions       ✗       • Impact certificates       ✓     ││
 │   │                                                                        ││
 │   │   WHY OFF-CHAIN:                    WHY ON-CHAIN:                      ││
@@ -67,9 +67,9 @@ Not everything benefits from being on-chain. We deliberately chose what goes whe
 │                    THE COST OF "EVERYTHING ON-CHAIN"                        │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│   IF we minted a token for EVERY product scan:                              │
+│   IF we minted a token for EVERY product capture:                           │
 │                                                                              │
-│   • 1,000 users × 10 scans/week = 10,000 transactions/week                 │
+│   • 1,000 users × 10 captures/week = 10,000 transactions/week              │
 │   • Each mint costs ~$0.00025 = $2.50/week in fees                         │
 │   • Every user MUST have a Solana wallet                                   │
 │   • Every user MUST understand crypto                                       │
@@ -163,9 +163,9 @@ For a consumer app where users earn small rewards per action, transaction costs 
 
 | Factor | Ethereum | Solana | Impact |
 |--------|----------|--------|--------|
-| **Transaction Cost** | $0.50 - $50 | $0.00025 | Users earn ~$0.05 per scan; ETH fees would exceed rewards |
-| **Speed** | 12-15 seconds | 400ms | Real-time feedback when scanning products |
-| **Throughput** | ~15 TPS | ~65,000 TPS | Scale to millions of product scans |
+| **Transaction Cost** | $0.50 - $50 | $0.00025 | Users earn ~$0.05 per capture; ETH fees would exceed rewards |
+| **Speed** | 12-15 seconds | 400ms | Real-time feedback when capturing products |
+| **Throughput** | ~15 TPS | ~65,000 TPS | Scale to millions of product captures |
 | **Finality** | ~6 minutes | ~400ms | Instant confirmation for users |
 | **Developer Experience** | Mature but complex | Anchor makes it accessible | Faster development |
 
@@ -185,7 +185,7 @@ Our architecture deliberately separates concerns between off-chain and on-chain 
 │  ┌─────────────────────────────────────────────────────────────────────────┐│
 │  │                        OFF-CHAIN (Database)                             ││
 │  │                                                                         ││
-│  │  User signs up ──▶ Scans products ──▶ Earns points ──▶ Pledges to NGO  ││
+│  │  User signs up ──▶ Captures products ──▶ Earns points ──▶ Pledges to NGO││
 │  │                                                                         ││
 │  │  • No wallet required                                                   ││
 │  │  • Instant feedback                                                     ││
@@ -222,7 +222,7 @@ Our architecture deliberately separates concerns between off-chain and on-chain 
 |------|----------|-----|
 | User accounts | Database | No one outside Ecoscore needs to verify this |
 | Point balances | Database | Internal gamification, not financial |
-| Product scans | Database | Personal history, not public interest |
+| Product captures | Database | Personal history, not public interest |
 | Pledge intentions | Database | Intent, not yet action |
 | **Actual donations** | **Solana** | **This is where trust matters** |
 | **NGO whitelist** | **Solana** | **Prevents unauthorized recipients** |
@@ -243,7 +243,7 @@ Users can optionally "burn" their accumulated points to receive a **soulbound (n
 │                                                                              │
 │  STEP 1: User accumulates points (off-chain)                                │
 │  ──────────────────────────────────────────────                              │
-│  Alice scans sustainable products → Earns 5,000 points                      │
+│  Alice captures sustainable products → Earns 5,000 points                   │
 │                                                                              │
 │  STEP 2: User pledges points to NGO (off-chain)                             │
 │  ──────────────────────────────────────────────────                          │
@@ -327,7 +327,7 @@ The term "burn" means the points are permanently consumed:
 │   BECAUSE certificates are SOULBOUND:                                       │
 │   ────────────────────────────────────                                       │
 │   • Certificate is tied to YOUR wallet forever                              │
-│   • Proves YOU scanned products and pledged points                         │
+│   • Proves YOU captured products and pledged points                        │
 │   • Builds genuine reputation over time                                    │
 │   • Can't be bought, only earned                                           │
 │                                                                              │
@@ -502,7 +502,7 @@ This becomes a **permanent receipt** proving:
 │  │                     Next.js Application                           │       │
 │  │  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐  │       │
 │  │  │  Product   │  │   Points   │  │  Pledge    │  │  Donation  │  │       │
-│  │  │  Scanner   │  │   System   │  │    UI      │  │  Dashboard │  │       │
+│  │  │  Capture   │  │   System   │  │    UI      │  │  Dashboard │  │       │
 │  │  └────────────┘  └────────────┘  └────────────┘  └────────────┘  │       │
 │  └──────────────────────────────────────────────────────────────────┘       │
 │                                    │                                         │
@@ -1095,16 +1095,17 @@ When viewing transactions on [Solana Explorer](https://explorer.solana.com/?clus
 
 ```
 Points System:
-• 1,000 points = 0.05 SOL = ~$5 (at $100/SOL)
-• Minimum pledge: 1,000 points
+• 100 points = $1 = 0.01 SOL (at $100/SOL)
+• 1,000 points = 0.1 SOL = ~$10
+• Minimum pledge: 500 points ($5)
 
 Calculation:
-points × 50,000,000 / 1,000 = lamports
+points × 100,000,000 / 1,000 = lamports
 
 Examples:
-• 1,000 points = 50,000,000 lamports = 0.05 SOL
-• 5,000 points = 250,000,000 lamports = 0.25 SOL
-• 10,000 points = 500,000,000 lamports = 0.50 SOL
+• 500 points = 50,000,000 lamports = 0.05 SOL = $5 (minimum)
+• 1,000 points = 100,000,000 lamports = 0.1 SOL = $10
+• 5,000 points = 500,000,000 lamports = 0.5 SOL = $50
 ```
 
 ---
@@ -1115,7 +1116,7 @@ Examples:
 
 ```
 Potential additions:
-• SPL Token (ECO) — Mint tokens on scan, burn on pledge
+• SPL Token (ECO) — Mint tokens on capture, burn on pledge
 • Soulbound Badges — Non-transferable achievement NFTs
 • Governance — Token holders vote on NGO whitelist
 • Staking — Lock tokens to boost donation multiplier

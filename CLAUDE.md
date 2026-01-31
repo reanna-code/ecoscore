@@ -5,7 +5,7 @@
 Ecoscore is a sustainability-focused web application with two entry points:
 
 1. **Online Shopping** — Users paste product URLs; a webscraper extracts product info and evaluates sustainability
-2. **In-Store Shopping** — Users scan barcodes via mobile camera to evaluate products while shopping in person
+2. **In-Store Shopping** — Users take photos of products/tags via mobile camera (processed by Gemini AI) to evaluate items while shopping in person
 
 ### Core Features
 - **Sustainability Scoring** — Each product receives an eco-score based on materials, sourcing, carbon footprint, etc.
@@ -94,7 +94,7 @@ Transform the escrow into a **coordination layer** for climate actions via a pro
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   Next.js UI    │────▶│  Off-chain API   │────▶│  Solana Program │
 │  - URL scraper  │     │  - User scores   │     │  - Escrow vault │
-│  - Barcode scan │     │  - Points calc   │     │  - Disburse     │
+│  - Photo/URL    │     │  - Points calc   │     │  - Disburse     │
 │  - Wallet conn  │     │  - Brand data    │     │  - Events       │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
 ```

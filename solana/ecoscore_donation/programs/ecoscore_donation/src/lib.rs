@@ -11,19 +11,24 @@ declare_id!("Ff9wbBku1gd8wEoXej6YMxqiyw6eUEGqzCJBNLoHzTqv");
 /// Maximum number of NGOs that can be whitelisted
 const MAX_NGOS: usize = 50;
 
+/// Maximum number of sponsors that can be registered
+const MAX_SPONSORS: usize = 50;
+
 /// Maximum NGOs per batch (to fit in transaction size limits)
 const MAX_BATCH_SIZE: usize = 10;
 
-/// Minimum points required for a pledge (1000 points = ~$5)
-const MIN_PLEDGE_POINTS: u64 = 1000;
+/// Minimum points required for a pledge (500 points = $5)
+const MIN_PLEDGE_POINTS: u64 = 500;
 
-/// Conversion rate: points to lamports (1000 points = 0.05 SOL = 50_000_000 lamports)
-const LAMPORTS_PER_1000_POINTS: u64 = 50_000_000;
+/// Conversion rate: 100 points = $1 ≈ 0.01 SOL (at $100/SOL)
+/// 1000 points = 0.1 SOL = 100_000_000 lamports
+const LAMPORTS_PER_1000_POINTS: u64 = 100_000_000;
 
 /// Seeds for PDA derivation (v2 for fresh devnet deployment)
 const ESCROW_SEED: &[u8] = b"escrow_v2";
 const CONFIG_SEED: &[u8] = b"config_v2";
 const NGO_REGISTRY_SEED: &[u8] = b"ngo_registry_v2";
+const SPONSOR_REGISTRY_SEED: &[u8] = b"sponsor_registry_v2";
 
 // =============================================================================
 // PROGRAM INSTRUCTIONS
@@ -38,6 +43,7 @@ pub mod ecoscore_donation {
     /// This creates:
     /// - A Config account to store admin and totals
     /// - An NGO Registry to track whitelisted recipients
+    /// - A Sponsor Registry to track verified brand partners
     /// - An Escrow Vault PDA to hold funds
     ///
     /// Only needs to be called once when setting up the system.
@@ -55,6 +61,10 @@ pub mod ecoscore_donation {
         ngo_registry.ngos = Vec::new();
         ngo_registry.bump = ctx.bumps.ngo_registry;
 
+        let sponsor_registry = &mut ctx.accounts.sponsor_registry;
+        sponsor_registry.sponsors = Vec::new();
+        sponsor_registry.bump = ctx.bumps.sponsor_registry;
+
         emit!(InitializeEvent {
             admin: ctx.accounts.admin.key(),
             timestamp: Clock::get()?.unix_timestamp,
@@ -68,6 +78,7 @@ pub mod ecoscore_donation {
     ///
     /// Any sponsor (brand partner) can deposit funds.
     /// Funds are held in the vault PDA until disbursed to NGOs.
+    /// If the sponsor is registered, their totals are updated.
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         require!(amount > 0, EscrowError::InvalidAmount);
 
@@ -88,8 +99,31 @@ pub mod ecoscore_donation {
             .checked_add(amount)
             .ok_or(EscrowError::Overflow)?;
 
+        // Update sponsor totals if registered
+        let sponsor_registry = &mut ctx.accounts.sponsor_registry;
+        let sponsor_pubkey = ctx.accounts.sponsor.key();
+        let sponsor_name = if let Some(sponsor) = sponsor_registry
+            .sponsors
+            .iter_mut()
+            .find(|s| s.pubkey == sponsor_pubkey)
+        {
+            sponsor.total_deposited = sponsor
+                .total_deposited
+                .checked_add(amount)
+                .ok_or(EscrowError::Overflow)?;
+            sponsor.deposit_count = sponsor
+                .deposit_count
+                .checked_add(1)
+                .ok_or(EscrowError::Overflow)?;
+            sponsor.last_deposit = Clock::get()?.unix_timestamp;
+            Some(sponsor.name.clone())
+        } else {
+            None
+        };
+
         emit!(DepositEvent {
-            sponsor: ctx.accounts.sponsor.key(),
+            sponsor: sponsor_pubkey,
+            sponsor_name,
             amount,
             timestamp: Clock::get()?.unix_timestamp,
         });
@@ -97,8 +131,73 @@ pub mod ecoscore_donation {
         msg!(
             "Deposit received: {} lamports from {}",
             amount,
-            ctx.accounts.sponsor.key()
+            sponsor_pubkey
         );
+        Ok(())
+    }
+
+    /// Register a sponsor (brand partner)
+    ///
+    /// Only the admin can register sponsors.
+    /// Registered sponsors have their deposits tracked publicly.
+    pub fn register_sponsor(ctx: Context<RegisterSponsor>, sponsor_pubkey: Pubkey, name: String) -> Result<()> {
+        let sponsor_registry = &mut ctx.accounts.sponsor_registry;
+
+        // Check if sponsor already exists
+        require!(
+            !sponsor_registry.sponsors.iter().any(|s| s.pubkey == sponsor_pubkey),
+            EscrowError::SponsorAlreadyExists
+        );
+
+        // Check capacity
+        require!(
+            sponsor_registry.sponsors.len() < MAX_SPONSORS,
+            EscrowError::SponsorRegistryFull
+        );
+
+        // Validate name length
+        require!(name.len() <= 64, EscrowError::NameTooLong);
+
+        sponsor_registry.sponsors.push(SponsorEntry {
+            pubkey: sponsor_pubkey,
+            name: name.clone(),
+            total_deposited: 0,
+            deposit_count: 0,
+            last_deposit: 0,
+            is_verified: true,
+        });
+
+        emit!(SponsorRegisteredEvent {
+            sponsor: sponsor_pubkey,
+            name,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        msg!("Sponsor registered: {}", sponsor_pubkey);
+        Ok(())
+    }
+
+    /// Remove a sponsor from verified status
+    ///
+    /// Only the admin can unverify sponsors.
+    /// Unverified sponsors can still deposit but won't show as verified partners.
+    pub fn remove_sponsor(ctx: Context<RemoveSponsor>, sponsor_pubkey: Pubkey) -> Result<()> {
+        let sponsor_registry = &mut ctx.accounts.sponsor_registry;
+
+        let sponsor = sponsor_registry
+            .sponsors
+            .iter_mut()
+            .find(|s| s.pubkey == sponsor_pubkey)
+            .ok_or(EscrowError::SponsorNotFound)?;
+
+        sponsor.is_verified = false;
+
+        emit!(SponsorRemovedEvent {
+            sponsor: sponsor_pubkey,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        msg!("Sponsor unverified: {}", sponsor_pubkey);
         Ok(())
     }
 
@@ -495,6 +594,40 @@ impl NgoRegistry {
         + 1; // bump
 }
 
+/// Entry for a single sponsor (brand partner) in the registry
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct SponsorEntry {
+    /// The sponsor's wallet address
+    pub pubkey: Pubkey,
+    /// Human-readable brand name (max 64 chars)
+    #[max_len(64)]
+    pub name: String,
+    /// Total lamports deposited by this sponsor
+    pub total_deposited: u64,
+    /// Number of deposits made
+    pub deposit_count: u32,
+    /// Timestamp of last deposit
+    pub last_deposit: i64,
+    /// Whether this sponsor is a verified partner
+    pub is_verified: bool,
+}
+
+/// Registry of all registered sponsors (brand partners)
+#[account]
+pub struct SponsorRegistry {
+    /// List of all registered sponsors
+    pub sponsors: Vec<SponsorEntry>,
+    /// Bump seed for this PDA
+    pub bump: u8,
+}
+
+impl SponsorRegistry {
+    pub const SPACE: usize = 8  // discriminator
+        + 4  // Vec length prefix
+        + (MAX_SPONSORS * (32 + 4 + 64 + 8 + 4 + 8 + 1))  // MAX_SPONSORS * SponsorEntry size
+        + 1; // bump
+}
+
 /// Allocation for a single NGO in a batch disbursement
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct BatchAllocation {
@@ -545,6 +678,16 @@ pub struct Initialize<'info> {
     )]
     pub ngo_registry: Account<'info, NgoRegistry>,
 
+    /// Registry of verified sponsors (brand partners)
+    #[account(
+        init,
+        payer = admin,
+        space = SponsorRegistry::SPACE,
+        seeds = [SPONSOR_REGISTRY_SEED],
+        bump
+    )]
+    pub sponsor_registry: Account<'info, SponsorRegistry>,
+
     /// The escrow vault PDA that holds deposited funds
     /// CHECK: This is a PDA that will hold SOL, validated by seeds
     #[account(
@@ -571,6 +714,14 @@ pub struct Deposit<'info> {
     )]
     pub config: Account<'info, Config>,
 
+    /// Sponsor registry to update sponsor totals
+    #[account(
+        mut,
+        seeds = [SPONSOR_REGISTRY_SEED],
+        bump = sponsor_registry.bump
+    )]
+    pub sponsor_registry: Account<'info, SponsorRegistry>,
+
     /// The escrow vault receiving the deposit
     /// CHECK: Validated by seeds
     #[account(
@@ -581,6 +732,56 @@ pub struct Deposit<'info> {
     pub escrow_vault: SystemAccount<'info>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct RegisterSponsor<'info> {
+    /// Only the admin can register sponsors
+    #[account(
+        mut,
+        constraint = admin.key() == config.admin @ EscrowError::Unauthorized
+    )]
+    pub admin: Signer<'info>,
+
+    /// Config to verify admin
+    #[account(
+        seeds = [CONFIG_SEED],
+        bump = config.bump
+    )]
+    pub config: Account<'info, Config>,
+
+    /// Sponsor registry to update
+    #[account(
+        mut,
+        seeds = [SPONSOR_REGISTRY_SEED],
+        bump = sponsor_registry.bump
+    )]
+    pub sponsor_registry: Account<'info, SponsorRegistry>,
+}
+
+#[derive(Accounts)]
+pub struct RemoveSponsor<'info> {
+    /// Only the admin can remove sponsors
+    #[account(
+        mut,
+        constraint = admin.key() == config.admin @ EscrowError::Unauthorized
+    )]
+    pub admin: Signer<'info>,
+
+    /// Config to verify admin
+    #[account(
+        seeds = [CONFIG_SEED],
+        bump = config.bump
+    )]
+    pub config: Account<'info, Config>,
+
+    /// Sponsor registry to update
+    #[account(
+        mut,
+        seeds = [SPONSOR_REGISTRY_SEED],
+        bump = sponsor_registry.bump
+    )]
+    pub sponsor_registry: Account<'info, SponsorRegistry>,
 }
 
 #[derive(Accounts)]
@@ -744,7 +945,21 @@ pub struct InitializeEvent {
 #[event]
 pub struct DepositEvent {
     pub sponsor: Pubkey,
+    pub sponsor_name: Option<String>,
     pub amount: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct SponsorRegisteredEvent {
+    pub sponsor: Pubkey,
+    pub name: String,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct SponsorRemovedEvent {
+    pub sponsor: Pubkey,
     pub timestamp: i64,
 }
 
@@ -822,4 +1037,10 @@ pub enum EscrowError {
     EmptyBatch,
     #[msg("Account list does not match allocation list")]
     AccountMismatch,
+    #[msg("Sponsor is not in the registry")]
+    SponsorNotFound,
+    #[msg("Sponsor is already in the registry")]
+    SponsorAlreadyExists,
+    #[msg("Sponsor registry is at maximum capacity")]
+    SponsorRegistryFull,
 }
