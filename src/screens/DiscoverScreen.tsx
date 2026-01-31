@@ -1,9 +1,22 @@
+import { useState } from 'react';
 import { ChallengeCard } from '@/components/ChallengeCard';
 import { categories, mockChallenges, ecoTips } from '@/data/mockData';
 import { ChevronRight, Lightbulb, TrendingUp } from 'lucide-react';
+import { CategoryBrowseScreen } from './CategoryBrowseScreen';
 
 export function DiscoverScreen() {
   const weeklyChallenge = mockChallenges[0];
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Show category browse screen if a category is selected
+  if (selectedCategory) {
+    return (
+      <CategoryBrowseScreen
+        category={selectedCategory}
+        onBack={() => setSelectedCategory(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -28,7 +41,10 @@ export function DiscoverScreen() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">browse by category</h2>
-            <button className="text-sm text-primary font-medium flex items-center gap-1">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className="text-sm text-primary font-medium flex items-center gap-1"
+            >
               see all
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -38,6 +54,7 @@ export function DiscoverScreen() {
             {categories.map((category) => (
               <button
                 key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
                 className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card hover:bg-secondary transition-colors"
               >
                 <span className="text-2xl">{category.icon}</span>
