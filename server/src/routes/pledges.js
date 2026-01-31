@@ -139,23 +139,27 @@ router.get('/', authenticateToken, async (req, res) => {
 
 /**
  * GET /api/pledges/stats
- * Get pledge stats for current week
+ * Get GLOBAL pledge stats for current week (all users combined)
  */
 router.get('/stats', async (req, res) => {
   try {
     const weekNumber = Pledge.getCurrentWeekNumber();
 
-    // Get this week's pledges aggregated by NGO
+    // Get this week's pledges aggregated by NGO (ALL users)
     const weeklyStats = await Pledge.aggregate([
       { $match: { weekNumber, status: 'pending' } },
       {
         $group: {
           _id: '$ngoId',
           totalPoints: { $sum: '$points' },
-          pledgeCount: { $sum: 1 }
+          pledgeCount: { $sum: 1 },
+          uniqueUsers: { $addToSet: '$userId' }
         }
       }
     ]);
+
+    // Get total unique contributors this week
+    const allContributors = await Pledge.distinct('userId', { weekNumber, status: 'pending' });
 
     // Get NGO details
     const ngoIds = weeklyStats.map(s => s._id);
@@ -167,16 +171,20 @@ router.get('/stats', async (req, res) => {
       ngo: ngoMap[s._id.toString()],
       totalPoints: s.totalPoints,
       estimatedUsd: s.totalPoints / POINTS_PER_DOLLAR,
-      pledgeCount: s.pledgeCount
+      pledgeCount: s.pledgeCount,
+      contributorCount: s.uniqueUsers.length
     }));
 
     const totalPoints = weeklyStats.reduce((sum, s) => sum + s.totalPoints, 0);
+    const totalPledges = weeklyStats.reduce((sum, s) => sum + s.pledgeCount, 0);
 
     res.json({
       success: true,
       weekNumber,
       totalPoints,
       totalEstimatedUsd: totalPoints / POINTS_PER_DOLLAR,
+      totalPledges,
+      totalContributors: allContributors.length,
       byNgo: statsWithNames
     });
   } catch (error) {

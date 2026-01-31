@@ -24,11 +24,11 @@ const MIN_PLEDGE_POINTS: u64 = 500;
 /// 1000 points = 0.1 SOL = 100_000_000 lamports
 const LAMPORTS_PER_1000_POINTS: u64 = 100_000_000;
 
-/// Seeds for PDA derivation (v2 for fresh devnet deployment)
-const ESCROW_SEED: &[u8] = b"escrow_v2";
-const CONFIG_SEED: &[u8] = b"config_v2";
-const NGO_REGISTRY_SEED: &[u8] = b"ngo_registry_v2";
-const SPONSOR_REGISTRY_SEED: &[u8] = b"sponsor_registry_v2";
+/// Seeds for PDA derivation (v3 for fresh devnet deployment with full registry)
+const ESCROW_SEED: &[u8] = b"escrow_v3";
+const CONFIG_SEED: &[u8] = b"config_v3";
+const NGO_REGISTRY_SEED: &[u8] = b"ngo_registry_v3";
+const SPONSOR_REGISTRY_SEED: &[u8] = b"sponsor_registry_v3";
 
 // =============================================================================
 // PROGRAM INSTRUCTIONS

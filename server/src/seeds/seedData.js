@@ -5,11 +5,11 @@ import { Ngo, Sponsor, Product } from '../models/index.js';
 // Load from project root (run from server/ directory)
 dotenv.config({ path: '../.env' });
 
-// NGO data with on-chain wallet addresses
+// NGO data with REAL devnet wallet addresses
 const NGOS = [
   {
     name: "Greenpeace",
-    walletAddress: "2HtbcEKT9V8jjShwH3WcMwSuBp7bfgAqp2HtV4uR15mQ",
+    walletAddress: "EY85mP4AtKQV3cRT3eKGgyWMH5DWRMUo76L5bRcBztw3",
     description: "Global environmental organization campaigning to protect biodiversity and prevent climate change.",
     logoUrl: "/logos/greenpeace.png",
     websiteUrl: "https://www.greenpeace.org",
@@ -17,7 +17,7 @@ const NGOS = [
   },
   {
     name: "Environmental Defense Fund (EDF)",
-    walletAddress: "9yWJMoRvVwPsajwZacFjiBjzvvzqw3iVXDS9XC9zQspn",
+    walletAddress: "E4tk3jaaeKfkDoHCEHHEWQ5XbdRa5DX81CrE9XfgBzsC",
     description: "Finding practical solutions to the most serious environmental problems.",
     logoUrl: "/logos/edf.png",
     websiteUrl: "https://www.edf.org",
@@ -25,7 +25,7 @@ const NGOS = [
   },
   {
     name: "Friends of the Earth",
-    walletAddress: "8GDtDE8WCFjtvfXrDq4tLCxV1VhYBYAiSXaYA3ypgdRA",
+    walletAddress: "Fmpjug6ezThCRm6i3a8pf1FSuWFaT7B4MRhNnAbeQcFE",
     description: "Grassroots environmental network advocating for a healthy, just world.",
     logoUrl: "/logos/foe.png",
     websiteUrl: "https://www.foei.org",
@@ -33,7 +33,7 @@ const NGOS = [
   },
   {
     name: "Natural Resources Defense Council (NRDC)",
-    walletAddress: "5Uv4CBYY4YUC8P5zoAAAm3Sn6wTRfpLSFmtL4dWhEtC5",
+    walletAddress: "4k9UhCkSnJMB9mreURGmspLJynjTC9vrPhsTAh5pD93Z",
     description: "Safeguarding the earth through science, policy, and law.",
     logoUrl: "/logos/nrdc.png",
     websiteUrl: "https://www.nrdc.org",
@@ -41,7 +41,7 @@ const NGOS = [
   },
   {
     name: "Veritree",
-    walletAddress: "DdszS1TpT1isWSxU1uv8GPdA7qk99cWWTGMvzrwk9bf9",
+    walletAddress: "4gvZmVPKeCp5pb8BkEzMMXHPc7Uv7i7VHY6xJaLbdazt",
     description: "Blockchain-verified tree planting and ecosystem restoration.",
     logoUrl: "/logos/veritree.png",
     websiteUrl: "https://www.veritree.com",
@@ -49,7 +49,7 @@ const NGOS = [
   },
   {
     name: "Zero Waste Canada",
-    walletAddress: "37HXv5md7zKvPetmEkfYerJzhM7P8YkB6pCiFGkoGUXV",
+    walletAddress: "8LjjNpvtJpGKiFcqPJp2RWpN5yGZgZEq1eWvauVcUyNX",
     description: "Working towards a zero waste future in Canada through education and advocacy.",
     logoUrl: "/logos/zerowaste.png",
     websiteUrl: "https://www.zerowastecanada.ca",
@@ -57,11 +57,11 @@ const NGOS = [
   }
 ];
 
-// Sponsor data with on-chain wallet addresses
+// Sponsor data with REAL devnet wallet addresses
 const SPONSORS = [
   {
     name: "Patagonia",
-    walletAddress: "9iqBJDjKGcpEE1sEKb8NUb3FQ6QFkHUWtJe3qCtyj3jk",
+    walletAddress: "8jJJeK1CdN9HoY4fJgeYWFpFfm4M3cR3An6asVyQYPoT",
     description: "Outdoor clothing and gear company committed to environmental responsibility.",
     logoUrl: "/logos/patagonia.png",
     websiteUrl: "https://www.patagonia.com",
@@ -69,7 +69,7 @@ const SPONSORS = [
   },
   {
     name: "Allbirds",
-    walletAddress: "6ATQXUjA1PXLw1WTyu9squHBHT9o5CcbchkAUu9j8tFi",
+    walletAddress: "9ddQ979NnLstMjFaTeRmMe7ibDksCPnT5uTUoZyAUPjZ",
     description: "Sustainable footwear made from natural materials.",
     logoUrl: "/logos/allbirds.png",
     websiteUrl: "https://www.allbirds.com",
@@ -77,7 +77,7 @@ const SPONSORS = [
   },
   {
     name: "Tentree",
-    walletAddress: "3W2x6SizskpYCwWtcwmPQHL9sVco2QbsFbzXq7ztEdQS",
+    walletAddress: "47wDgCsuctvFaLkhca8vdtqe8pyhP5mVpKnYRuRa56XX",
     description: "Sustainable apparel brand that plants 10 trees for every item purchased.",
     logoUrl: "/logos/tentree.png",
     websiteUrl: "https://www.tentree.com",
@@ -85,7 +85,7 @@ const SPONSORS = [
   },
   {
     name: "Girlfriend Collective",
-    walletAddress: "Bz3kRAHQo3hfayeuhiToEPWBEnUwh7X7ZPghNUP5E5Xr",
+    walletAddress: "BfvX6kLbjQoCGEUN9b2PQ7FgyBumCQAvtM3UyWLTxyNc",
     description: "Sustainable activewear made from recycled materials.",
     logoUrl: "/logos/girlfriend.png",
     websiteUrl: "https://www.girlfriend.com",
@@ -93,7 +93,7 @@ const SPONSORS = [
   },
   {
     name: "Pela Case",
-    walletAddress: "FfdkzLx7j7sD9xwzNxxihnqCpjHVTpdFzZGnKdajrbT1",
+    walletAddress: "AzyNuiGCjKWCQ9PmZNMr6UeXuVDuUTkdRo178Y5Jnn6y",
     description: "Compostable phone cases and accessories.",
     logoUrl: "/logos/pela.png",
     websiteUrl: "https://www.pelacase.com",
@@ -101,7 +101,7 @@ const SPONSORS = [
   },
   {
     name: "Seventh Generation",
-    walletAddress: "29bGVfbQiYkTkEmpRDipQFsgT25Vw73tPPtQkXidLGiL",
+    walletAddress: "EGYP215hFFQMhFgL16Ls1t99CpZbri1vuHevxsY4VZ88",
     description: "Plant-based cleaning and personal care products.",
     logoUrl: "/logos/seventh.png",
     websiteUrl: "https://www.seventhgeneration.com",
@@ -109,7 +109,7 @@ const SPONSORS = [
   },
   {
     name: "Tom's of Maine",
-    walletAddress: "B1baCLc4S8Hnt83nFuFUV4BcBChd3w8V1Hh8oxKZYRq9",
+    walletAddress: "12ARignrPrrwn9PZD1PEdeHy9S52BxcutktFvJ2YD7fg",
     description: "Natural personal care products.",
     logoUrl: "/logos/toms.png",
     websiteUrl: "https://www.tomsofmaine.com",

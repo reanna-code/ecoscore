@@ -3,7 +3,8 @@
  * Connects to the Ecoscore donation program on Solana
  */
 
-import * as anchor from '@coral-xyz/anchor';
+import anchor from '@coral-xyz/anchor';
+const { BN } = anchor;
 import { Connection, PublicKey, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import fs from 'fs';
 import path from 'path';
@@ -14,11 +15,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Program ID from deployed contract
 const PROGRAM_ID = new PublicKey('Ff9wbBku1gd8wEoXej6YMxqiyw6eUEGqzCJBNLoHzTqv');
 
-// PDA seeds (must match the Rust program)
-const CONFIG_SEED = 'config_v2';
-const NGO_REGISTRY_SEED = 'ngo_registry_v2';
-const SPONSOR_REGISTRY_SEED = 'sponsor_registry_v2';
-const ESCROW_SEED = 'escrow_v2';
+// PDA seeds (must match the Rust program - v3)
+const CONFIG_SEED = 'config_v3';
+const NGO_REGISTRY_SEED = 'ngo_registry_v3';
+const SPONSOR_REGISTRY_SEED = 'sponsor_registry_v3';
+const ESCROW_SEED = 'escrow_v3';
 
 class SolanaClient {
   constructor(cluster = 'devnet') {
@@ -196,7 +197,7 @@ class SolanaClient {
     // Format allocations for the program
     const formattedAllocations = allocations.map(a => ({
       ngo: new PublicKey(a.ngoWallet),
-      pointsPledged: new anchor.BN(a.totalPoints)
+      pointsPledged: new BN(a.totalPoints)
     }));
 
     // Build remaining accounts (NGO wallets to receive funds)
@@ -207,10 +208,25 @@ class SolanaClient {
     }));
 
     try {
+      console.log('Batch disburse params:', {
+        weekId,
+        allocations: formattedAllocations.map(a => ({
+          ngo: a.ngo.toString(),
+          points: a.pointsPledged.toString()
+        })),
+        admin: this.wallet.publicKey.toString(),
+        config: configPda.toString(),
+        ngoRegistry: ngoRegistryPda.toString(),
+        escrowVault: escrowVaultPda.toString(),
+      });
+
       const tx = await this.program.methods
-        .batchDisburse(new anchor.BN(weekId), formattedAllocations)
+        .batchDisburse(new BN(weekId), formattedAllocations)
         .accountsPartial({
           admin: this.wallet.publicKey,
+          config: configPda,
+          ngoRegistry: ngoRegistryPda,
+          escrowVault: escrowVaultPda,
         })
         .remainingAccounts(remainingAccounts)
         .signers([this.wallet])
@@ -224,21 +240,22 @@ class SolanaClient {
         explorerUrl: `https://explorer.solana.com/tx/${tx}?cluster=${this.cluster}`
       };
     } catch (error) {
-      console.error('Batch disbursement failed:', error);
-      throw error;
+      console.error('Batch disbursement failed:', error.message);
+      console.error('Error logs:', error.logs || 'No logs');
+      throw new Error(`Solana batch failed: ${error.message}`);
     }
   }
 }
 
-// Singleton instance
-let solanaClient = null;
+// Singleton instance per cluster
+const solanaClients = {};
 
 export async function getSolanaClient(cluster = 'devnet') {
-  if (!solanaClient) {
-    solanaClient = new SolanaClient(cluster);
-    await solanaClient.initialize();
+  if (!solanaClients[cluster]) {
+    solanaClients[cluster] = new SolanaClient(cluster);
+    await solanaClients[cluster].initialize();
   }
-  return solanaClient;
+  return solanaClients[cluster];
 }
 
 export default SolanaClient;

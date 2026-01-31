@@ -14,13 +14,20 @@ interface Ngo {
   donationCount: number;
 }
 
+interface WeeklyStats {
+  totalPoints: number;
+  estimatedUsd: number;
+  pledgeCount: number;
+}
+
 interface NgoCardProps {
   ngo: Ngo;
   onSelect: (ngo: Ngo) => void;
   selected?: boolean;
+  weeklyStats?: WeeklyStats;
 }
 
-export function NgoCard({ ngo, onSelect, selected }: NgoCardProps) {
+export function NgoCard({ ngo, onSelect, selected, weeklyStats }: NgoCardProps) {
   return (
     <Card
       className={`cursor-pointer transition-all hover:shadow-lg ${
@@ -30,13 +37,26 @@ export function NgoCard({ ngo, onSelect, selected }: NgoCardProps) {
     >
       <CardHeader className="pb-2">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-2xl">
-            🌱
+          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center overflow-hidden">
+            {ngo.logoUrl ? (
+              <img
+                src={ngo.logoUrl}
+                alt={ngo.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement!.innerHTML = '🌱';
+                }}
+              />
+            ) : (
+              <span className="text-2xl">🌱</span>
+            )}
           </div>
           <div>
             <CardTitle className="text-lg">{ngo.name}</CardTitle>
             <CardDescription className="text-sm">
-              {ngo.donationCount} donations · ${ngo.totalReceivedUsd.toFixed(2)} raised
+              <span>${ngo.totalReceivedUsd?.toFixed(2) || '0.00'} raised all-time</span>
+              <span className="text-green-600 font-medium"> · ${weeklyStats?.estimatedUsd?.toFixed(2) || '0.00'} this week</span>
             </CardDescription>
           </div>
         </div>

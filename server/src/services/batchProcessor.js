@@ -77,12 +77,15 @@ export async function processWeeklyBatch(weekNumber = null, solanaClient = null)
 
   console.log(`\n=== Processing batch for week ${week} ===`);
 
-  // Check if already processed
+  // Check if already processed (skip in dev for easier testing)
   const existing = await BatchReceipt.findOne({ weekNumber: week });
-  if (existing) {
+  if (existing && process.env.NODE_ENV === 'production') {
     console.log(`Week ${week} already processed. TX: ${existing.txSignature}`);
     return { success: false, error: 'Already processed', receipt: existing };
   }
+
+  // In dev, use unique ID to allow multiple test runs
+  const effectiveWeek = process.env.NODE_ENV === 'production' ? week : Date.now();
 
   // Aggregate pledges
   const allocations = await aggregatePledges(week);
@@ -111,7 +114,7 @@ export async function processWeeklyBatch(weekNumber = null, solanaClient = null)
     // Call Solana program
     console.log('Calling Solana program...');
     try {
-      const result = await solanaClient.batchDisburse(week, allocations);
+      const result = await solanaClient.batchDisburse(effectiveWeek, allocations);
       txSignature = result.signature;
       cluster = solanaClient.cluster || 'devnet';
       console.log(`Solana TX: ${txSignature}`);
@@ -125,7 +128,7 @@ export async function processWeeklyBatch(weekNumber = null, solanaClient = null)
         { status: 'failed' }
       );
 
-      return { success: false, error: 'Solana transaction failed', details: error.message };
+      return { success: false, error: error.message || 'Solana transaction failed' };
     }
   } else {
     // Demo mode - generate mock signature
@@ -136,7 +139,7 @@ export async function processWeeklyBatch(weekNumber = null, solanaClient = null)
 
   // Create batch receipt
   const receipt = await BatchReceipt.create({
-    weekNumber: week,
+    weekNumber: effectiveWeek,
     txSignature,
     totalPointsRedeemed: totalPoints,
     totalLamports,
@@ -177,7 +180,7 @@ export async function processWeeklyBatch(weekNumber = null, solanaClient = null)
     { arrayFilters: [{ 'elem.status': 'pending' }] }
   );
 
-  console.log(`\n=== Batch complete ===`);
+  console.log(`\n=== Batch complete (week ${effectiveWeek}) ===`);
   console.log(`Receipt ID: ${receipt._id}`);
   console.log(`Explorer: https://explorer.solana.com/tx/${txSignature}?cluster=${cluster}`);
 

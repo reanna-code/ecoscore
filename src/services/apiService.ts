@@ -214,6 +214,12 @@ export async function getPledgeStats() {
   return response.json();
 }
 
+export async function getWeeklyPledgesByNgo() {
+  const response = await fetch(`${API_BASE_URL}/pledges/stats`);
+  if (!response.ok) throw new Error('Failed to fetch weekly pledges');
+  return response.json();
+}
+
 // ============ Donations API ============
 
 export async function getDonations(limit = 20) {
@@ -231,6 +237,12 @@ export async function getDonationStats() {
 export async function getDonationByTx(txSignature: string) {
   const response = await fetch(`${API_BASE_URL}/donations/tx/${txSignature}`);
   if (!response.ok) throw new Error('Failed to fetch donation');
+  return response.json();
+}
+
+export async function getBatchReceipts(limit = 10) {
+  const response = await fetch(`${API_BASE_URL}/donations?limit=${limit}`);
+  if (!response.ok) throw new Error('Failed to fetch batch receipts');
   return response.json();
 }
 
@@ -252,6 +264,37 @@ export async function selectAlternative(originalProductId: string, alternativePr
     method: 'POST',
     body: JSON.stringify({ originalProductId, alternativeProductId }),
   });
+}
+
+export async function devGrantPoints(amount: number = 1000) {
+  return fetchWithAuth('/points/dev-grant', {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
+}
+
+export async function devProcessBatch() {
+  const response = await fetch(`${API_BASE_URL}/admin/batch/process-solana`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Batch failed' }));
+    throw new Error(error.error || 'Batch processing failed');
+  }
+  return response.json();
+}
+
+export async function devFillVault(amount: number = 0.5) {
+  const response = await fetch(`${API_BASE_URL}/admin/vault/deposit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Deposit failed' }));
+    throw new Error(error.error || 'Vault deposit failed');
+  }
+  return response.json();
 }
 
 // ============ Health Check ============

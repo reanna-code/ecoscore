@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ExternalLink } from "lucide-react";
 
 interface Pledge {
   id: string;
@@ -51,11 +52,15 @@ export function DonationHistory({ pledges }: DonationHistoryProps) {
             className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                🌍
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center overflow-hidden">
+                {pledge.ngo?.logoUrl ? (
+                  <img src={pledge.ngo.logoUrl} alt={pledge.ngo.name} className="w-full h-full object-cover" />
+                ) : (
+                  '🌍'
+                )}
               </div>
               <div>
-                <p className="font-medium">{pledge.ngo.name}</p>
+                <p className="font-medium">{pledge.ngo?.name || 'Unknown NGO'}</p>
                 <p className="text-sm text-gray-500">
                   {new Date(pledge.createdAt).toLocaleDateString()}
                 </p>
@@ -63,17 +68,34 @@ export function DonationHistory({ pledges }: DonationHistoryProps) {
             </div>
             <div className="text-right">
               <p className="font-semibold text-green-600">
-                ${pledge.estimatedUsd.toFixed(2)}
+                ${pledge.estimatedUsd?.toFixed(2) || '0.00'}
               </p>
-              <Badge className={statusColors[pledge.status]}>
-                {pledge.status}
-              </Badge>
+              <div className="flex items-center gap-1 justify-end">
+                {pledge.explorerUrl ? (
+                  <a
+                    href={pledge.explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Badge className={statusColors[pledge.status]}>
+                      {pledge.status}
+                    </Badge>
+                    <ExternalLink className="w-3 h-3 text-purple-600" />
+                  </a>
+                ) : (
+                  <Badge className={statusColors[pledge.status]}>
+                    {pledge.status}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
         ))}
         {pledges.some(p => p.explorerUrl) && (
           <p className="text-xs text-center text-gray-500 pt-2">
-            Completed donations are verified on the Solana blockchain
+            Click the link icon to verify on Solana Explorer
           </p>
         )}
       </CardContent>
