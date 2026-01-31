@@ -22,19 +22,9 @@ const Index = () => {
     isConfigured
   } = useAuth();
   
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('scan');
   const [registrationError, setRegistrationError] = useState<string | null>(null);
-
-  // Check if user has seen onboarding (only after they're fully authenticated)
-  useEffect(() => {
-    if (isAuthenticated) {
-      const hasSeenOnboarding = localStorage.getItem('ecoscore_onboarding_complete');
-      if (!hasSeenOnboarding) {
-        setShowOnboarding(true);
-      }
-    }
-  }, [isAuthenticated]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -98,6 +88,11 @@ const Index = () => {
     );
   }
 
+  // Show onboarding first (before auth)
+  if (showOnboarding) {
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
+
   // Not authenticated - show auth screen
   if (!firebaseUser) {
     return <AuthScreen onNeedsUsername={() => {}} />;
@@ -112,11 +107,6 @@ const Index = () => {
         error={registrationError}
       />
     );
-  }
-
-  // Show onboarding for new users
-  if (showOnboarding) {
-    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
   }
 
   const renderActiveTab = () => {

@@ -83,12 +83,9 @@ export function AuthScreen({ onNeedsUsername }: AuthScreenProps) {
       <div className="min-h-screen bg-background flex flex-col">
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-sm text-center space-y-8">
-            {/* Logo and mascot */}
+            {/* Mascot */}
             <div className="space-y-4">
-              <div className="w-20 h-20 rounded-3xl gradient-nature flex items-center justify-center mx-auto shadow-lg">
-                <Leaf className="w-10 h-10 text-white" />
-              </div>
-              <Mascot size="lg" mood="waving" />
+              <Mascot size="xl" mood="waving" />
             </div>
 
             {/* Welcome text */}
