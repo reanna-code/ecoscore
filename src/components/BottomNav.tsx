@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
-import { Scan, Compass, Trophy, User } from 'lucide-react';
+import { Scan, Compass, Trophy, User, Heart } from 'lucide-react';
 
-type TabId = 'scan' | 'discover' | 'leaderboard' | 'profile';
+type TabId = 'scan' | 'discover' | 'leaderboard' | 'donate' | 'profile';
 
 interface BottomNavProps {
   activeTab: TabId;
@@ -9,9 +9,10 @@ interface BottomNavProps {
 }
 
 const tabs: { id: TabId; label: string; icon: typeof Scan }[] = [
-  { id: 'scan', label: 'scan', icon: Scan },
+  { id: 'scan', label: 'capture', icon: Scan },
   { id: 'discover', label: 'discover', icon: Compass },
   { id: 'leaderboard', label: 'leaderboard', icon: Trophy },
+  { id: 'donate', label: 'donate', icon: Heart },
   { id: 'profile', label: 'profile', icon: User },
 ];
 
