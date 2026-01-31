@@ -23,7 +23,7 @@ export const mockProducts: Product[] = [
     id: 'p2',
     name: 'ocean breeze shampoo',
     brand: 'cleanbeauty',
-    category: 'shampoo',
+    category: 'clothes',
     ecoScore: 38,
     barcode: '012345678902',
     isLocal: false,
@@ -123,7 +123,7 @@ export const mockShampooAlternatives: Alternative[] = [
     id: 'sa1',
     name: 'refill bar shampoo',
     brand: 'zerowaste',
-    category: 'shampoo',
+    category: 'clothes',
     ecoScore: 92,
     isLocal: true,
     certifications: ['organic', 'cruelty-free', 'b-corp'],
@@ -142,7 +142,7 @@ export const mockShampooAlternatives: Alternative[] = [
     id: 'sa2',
     name: 'ocean safe wash',
     brand: 'blueplanet',
-    category: 'shampoo',
+    category: 'clothes',
     ecoScore: 81,
     isLocal: false,
     certifications: ['ocean-safe', 'vegan'],
@@ -337,13 +337,29 @@ export const mockLeaderboard: LeaderboardEntry[] = [
   },
 ];
 
+// Helper to get user info by ID
+export const getUserById = (userId: string) => {
+  const leaderboardUser = mockLeaderboard.find(entry => entry.userId === userId);
+  if (leaderboardUser) return leaderboardUser;
+  if (userId === mockUser.id) {
+    return {
+      userId: mockUser.id,
+      username: mockUser.username,
+      points: mockUser.pointsBalance,
+      badges: mockUser.badges,
+      ecoScore: mockUser.personalEcoScore,
+    };
+  }
+  return null;
+};
+
 export const categories = [
+  { id: 'clothes', name: 'clothes', icon: '👕' },
   { id: 'snacks', name: 'snacks', icon: '🍿' },
-  { id: 'shampoo', name: 'shampoo', icon: '🧴' },
+  { id: 'shoes', name: 'shoes', icon: '👟' },
+  { id: 'phonecases', name: 'phone cases', icon: '📱' },
   { id: 'household', name: 'household', icon: '🏠' },
-  { id: 'drinks', name: 'drinks', icon: '🥤' },
-  { id: 'refills', name: 'refills', icon: '🔄' },
-  { id: 'cleaning', name: 'cleaning', icon: '🧹' },
+  { id: 'selfcare', name: 'selfcare', icon: '💆' },
 ];
 
 export const ecoTips = [

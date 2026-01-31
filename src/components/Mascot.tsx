@@ -48,10 +48,10 @@ export function Mascot({ size = 'md', mood = 'happy', animate = true, className 
             <stop offset="100%" stopColor="hsl(152, 40%, 34%)" />
           </linearGradient>
           <linearGradient id="leafGradientSad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(152, 45%, 42%)" />
-            <stop offset="40%" stopColor="hsl(152, 40%, 38%)" />
-            <stop offset="70%" stopColor="hsl(152, 38%, 34%)" />
-            <stop offset="100%" stopColor="hsl(152, 35%, 30%)" />
+            <stop offset="0%" stopColor="hsl(50, 35%, 45%)" />
+            <stop offset="40%" stopColor="hsl(45, 32%, 38%)" />
+            <stop offset="70%" stopColor="hsl(40, 30%, 32%)" />
+            <stop offset="100%" stopColor="hsl(35, 28%, 28%)" />
           </linearGradient>
           <filter id="leafShadow">
             <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
@@ -82,7 +82,7 @@ export function Mascot({ size = 'md', mood = 'happy', animate = true, className 
         )}
         
         {/* Green stick legs - drawn FIRST so they appear behind body */}
-        <g stroke="hsl(152, 45%, 28%)" strokeWidth="3" strokeLinecap="round">
+        <g stroke={mood === 'sad' ? "hsl(60, 30%, 35%)" : "hsl(152, 45%, 28%)"} strokeWidth="3" strokeLinecap="round">
           {mood === 'sad' ? (
             <>
               <line x1="52" y1="115" x2="45" y2="135" />
@@ -123,17 +123,45 @@ export function Mascot({ size = 'md', mood = 'happy', animate = true, className 
         {/* Leaf body - classic leaf shape with pointed top and bottom */}
         <path
           d="M60 5 Q75 15 85 30 Q95 50 95 70 Q95 90 85 102 Q75 112 60 118 Q45 112 35 102 Q25 90 25 70 Q25 50 35 30 Q45 15 60 5 Z"
-          fill="url(#leafGradient)"
-          stroke="hsl(152, 45%, 32%)"
+          fill={mood === 'sad' ? "url(#leafGradientSad)" : "url(#leafGradient)"}
+          stroke={mood === 'sad' ? "hsl(30, 45%, 28%)" : "hsl(152, 45%, 32%)"}
           strokeWidth="2.5"
           filter="url(#leafShadow)"
         />
+        
+        {/* Wrinkles for sad mood */}
+        {mood === 'sad' && (
+          <g stroke="hsl(25, 40%, 25%)" strokeWidth="1.5" opacity="0.5" fill="none">
+            {/* Horizontal wrinkles */}
+            <path d="M32 35 Q40 33 48 35" />
+            <path d="M72 35 Q64 33 56 35" />
+            <path d="M30 48 Q38 45 46 48" />
+            <path d="M78 48 Q70 45 62 48" />
+            <path d="M28 58 Q36 55 44 58" />
+            <path d="M82 58 Q74 55 66 58" />
+            <path d="M32 68 Q40 65 48 68" />
+            <path d="M76 68 Q68 65 60 68" />
+            <path d="M35 78 Q43 75 51 78" />
+            <path d="M73 78 Q65 75 57 78" />
+            <path d="M38 88 Q46 85 54 88" />
+            <path d="M70 88 Q62 85 54 88" />
+            <path d="M42 98 Q50 95 58 98" />
+            <path d="M66 98 Q58 95 50 98" />
+            {/* Diagonal wrinkles */}
+            <path d="M35 42 Q42 45 48 42" />
+            <path d="M75 42 Q68 45 62 42" />
+            <path d="M38 62 Q45 65 52 62" />
+            <path d="M72 62 Q65 65 58 62" />
+            <path d="M40 82 Q47 85 54 82" />
+            <path d="M68 82 Q61 85 54 82" />
+          </g>
+        )}
         
         {/* Inner shadow for depth */}
         <path
           d="M60 8 Q74 17 83 31 Q92 49 92 70 Q92 88 83 99 Q74 109 60 115 Q46 109 37 99 Q28 88 28 70 Q28 49 37 31 Q46 17 60 8 Z"
           fill="none"
-          stroke="hsl(152, 55%, 50%)"
+          stroke={mood === 'sad' ? "hsl(35, 50%, 52%)" : "hsl(152, 55%, 50%)"}
           strokeWidth="1"
           opacity="0.3"
         />
@@ -141,7 +169,7 @@ export function Mascot({ size = 'md', mood = 'happy', animate = true, className 
         {/* Leaf vein (center line) */}
         <path
           d="M60 8 L60 116"
-          stroke="hsl(152, 45%, 28%)"
+          stroke={mood === 'sad' ? "hsl(30, 45%, 25%)" : "hsl(152, 45%, 28%)"}
           strokeWidth="2"
           opacity="0.35"
         />
@@ -149,14 +177,14 @@ export function Mascot({ size = 'md', mood = 'happy', animate = true, className 
         {/* Side veins */}
         <path
           d="M60 35 Q50 45 45 50 M60 50 Q50 58 47 65 M60 65 Q50 72 48 80"
-          stroke="hsl(152, 45%, 28%)"
+          stroke={mood === 'sad' ? "hsl(30, 45%, 25%)" : "hsl(152, 45%, 28%)"}
           strokeWidth="1.2"
           opacity="0.25"
           fill="none"
         />
         <path
           d="M60 35 Q70 45 75 50 M60 50 Q70 58 73 65 M60 65 Q70 72 72 80"
-          stroke="hsl(152, 45%, 28%)"
+          stroke={mood === 'sad' ? "hsl(30, 45%, 25%)" : "hsl(152, 45%, 28%)"}
           strokeWidth="1.2"
           opacity="0.25"
           fill="none"
@@ -257,7 +285,7 @@ export function Mascot({ size = 'md', mood = 'happy', animate = true, className 
         
         {/* Sad arms on sides - no hands */}
         {mood === 'sad' && (
-          <g stroke="hsl(152, 45%, 28%)" strokeWidth="4" strokeLinecap="round">
+          <g stroke="hsl(60, 30%, 35%)" strokeWidth="4" strokeLinecap="round">
             <line x1="26" y1="68" x2="18" y2="95" />
             <line x1="94" y1="68" x2="102" y2="95" />
           </g>

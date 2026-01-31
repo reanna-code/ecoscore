@@ -40,6 +40,49 @@ export function CompareResultsScreen({
     }
   };
 
+  const handleShare = async () => {
+    console.log('Share button clicked!', { earnedPoints });
+    const shareData = {
+      title: 'EcoScore - Nice Swap!',
+      text: `I just earned +${earnedPoints} points by making a greener choice! 🌿 Join me on EcoScore to track your eco-friendly swaps.`,
+      url: window.location.origin,
+    };
+
+    try {
+      // Check if Web Share API is available
+      if (navigator.share) {
+        console.log('Using Web Share API');
+        await navigator.share(shareData);
+      } else {
+        console.log('Using clipboard fallback');
+        // Fallback: copy to clipboard
+        const textToCopy = `${shareData.text}\n${shareData.url}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(textToCopy);
+          alert('✅ Copied to clipboard!\n\nShare this with your friends to spread the eco-love! 🌿');
+        } else {
+          // Final fallback for older browsers
+          const textArea = document.createElement('textarea');
+          textArea.value = textToCopy;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          alert('✅ Copied to clipboard!\n\nShare this with your friends to spread the eco-love! 🌿');
+        }
+      }
+    } catch (err) {
+      // User cancelled or error occurred
+      console.error('Share error:', err);
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('Share failed:', err);
+        alert('❌ Could not share. Please try again.');
+      }
+    }
+  };
+
   const handleBackToCompare = () => {
     setShowCelebration(false);
     setSelectedId(null);
@@ -52,23 +95,58 @@ export function CompareResultsScreen({
         {/* Confetti and sun for greener choice */}
         {!pickedLessEco && (
           <>
-            {/* Sunny sky - sun in corner */}
+            {/* Sunny sky - realistic sun with gradients */}
             <div className="absolute top-8 right-8">
-              <svg width="80" height="80" viewBox="0 0 80 80">
-                {/* Sun rays */}
-                <g stroke="hsl(45, 100%, 60%)" strokeWidth="3" strokeLinecap="round">
-                  <line x1="40" y1="10" x2="40" y2="0" />
-                  <line x1="40" y1="80" x2="40" y2="70" />
-                  <line x1="10" y1="40" x2="0" y2="40" />
-                  <line x1="80" y1="40" x2="70" y2="40" />
-                  <line x1="15" y1="15" x2="8" y2="8" />
-                  <line x1="65" y1="15" x2="72" y2="8" />
-                  <line x1="15" y1="65" x2="8" y2="72" />
-                  <line x1="65" y1="65" x2="72" y2="72" />
+              <svg width="140" height="140" viewBox="0 0 140 140">
+                <defs>
+                  {/* Radial gradient for sun body */}
+                  <radialGradient id="sunGradient">
+                    <stop offset="0%" stopColor="hsl(50, 100%, 95%)" />
+                    <stop offset="30%" stopColor="hsl(48, 100%, 80%)" />
+                    <stop offset="60%" stopColor="hsl(45, 100%, 60%)" />
+                    <stop offset="100%" stopColor="hsl(40, 100%, 50%)" />
+                  </radialGradient>
+                  {/* Glow filter */}
+                  <filter id="sunGlow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                  {/* Gradient for rays */}
+                  <linearGradient id="rayGradient">
+                    <stop offset="0%" stopColor="hsl(45, 100%, 70%)" stopOpacity="0" />
+                    <stop offset="100%" stopColor="hsl(45, 100%, 60%)" stopOpacity="0.8" />
+                  </linearGradient>
+                </defs>
+                
+                {/* Outer glow */}
+                <circle cx="70" cy="70" r="40" fill="hsl(45, 100%, 65%)" opacity="0.3" filter="url(#sunGlow)" />
+                <circle cx="70" cy="70" r="32" fill="hsl(45, 100%, 70%)" opacity="0.4" />
+                
+                {/* Sun rays - tapered triangular shapes, thicker */}
+                <g fill="url(#rayGradient)">
+                  {/* Top ray */}
+                  <polygon points="70,5 65,40 75,40" />
+                  {/* Bottom ray */}
+                  <polygon points="70,135 65,100 75,100" />
+                  {/* Left ray */}
+                  <polygon points="5,70 40,65 40,75" />
+                  {/* Right ray */}
+                  <polygon points="135,70 100,65 100,75" />
+                  {/* Top-left ray */}
+                  <polygon points="20,20 43,43 50,38 38,50" />
+                  {/* Top-right ray */}
+                  <polygon points="120,20 97,43 90,38 102,50" />
+                  {/* Bottom-left ray */}
+                  <polygon points="20,120 43,97 50,102 38,90" />
+                  {/* Bottom-right ray */}
+                  <polygon points="120,120 97,97 90,102 102,90" />
                 </g>
-                {/* Sun body */}
-                <circle cx="40" cy="40" r="18" fill="hsl(45, 100%, 55%)" />
-                <circle cx="40" cy="40" r="15" fill="hsl(45, 100%, 60%)" />
+                
+                {/* Sun body with gradient */}
+                <circle cx="70" cy="70" r="26" fill="url(#sunGradient)" filter="url(#sunGlow)" />
               </svg>
             </div>
             
@@ -220,7 +298,11 @@ export function CompareResultsScreen({
 
           <div className="space-y-3">
             {!pickedLessEco && (
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={handleShare}
+              >
                 <Share2 className="w-4 h-4 mr-2" />
                 share
               </Button>
