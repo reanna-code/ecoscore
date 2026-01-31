@@ -1,5 +1,85 @@
 // ecoscore data models - structured for future api integration
 
+// Gemini analysis types
+export interface GeminiAnalysisResult {
+  productName: string;
+  brand: string | null;
+  category: string;
+  materials: string[];
+  ingredients: string[];
+  ecoScore: number;
+  ecoScoreBreakdown: {
+    packaging: number;
+    materials: number;
+    carbonFootprint: number;
+    waterUse: number;
+    ethics: number;
+    recyclability: number;
+  };
+  concerns: string[];
+  positives: string[];
+  alternatives: GeminiAlternative[];
+  summary: string;
+}
+
+export interface GeminiAlternative {
+  name: string;
+  brand: string;
+  reason: string;
+  estimatedEcoScore: number;
+  whereToBuy: string[];
+  estimatedPrice: {
+    min: number;
+    max: number;
+    currency: string;
+  } | null;
+}
+
+// Convert Gemini result to app Product format
+export function geminiResultToProduct(result: GeminiAnalysisResult): Product {
+  return {
+    id: `gemini-${Date.now()}`,
+    name: result.productName,
+    brand: result.brand || 'Unknown',
+    category: result.category,
+    ecoScore: result.ecoScore,
+    isLocal: false,
+    certifications: [],
+    factorBreakdown: {
+      packaging: result.ecoScoreBreakdown.packaging,
+      materials: result.ecoScoreBreakdown.materials,
+      carbonFootprint: result.ecoScoreBreakdown.carbonFootprint,
+      waterUse: result.ecoScoreBreakdown.waterUse,
+      ethics: result.ecoScoreBreakdown.ethics,
+      recyclability: result.ecoScoreBreakdown.recyclability,
+    },
+  };
+}
+
+export function geminiAlternativesToProducts(
+  alternatives: GeminiAlternative[]
+): Alternative[] {
+  return alternatives.map((alt, index) => ({
+    id: `gemini-alt-${index}-${Date.now()}`,
+    name: alt.name,
+    brand: alt.brand,
+    category: 'alternative',
+    ecoScore: alt.estimatedEcoScore,
+    isLocal: false,
+    certifications: [],
+    factorBreakdown: {
+      packaging: alt.estimatedEcoScore,
+      materials: alt.estimatedEcoScore,
+      carbonFootprint: alt.estimatedEcoScore,
+      waterUse: alt.estimatedEcoScore,
+      ethics: alt.estimatedEcoScore,
+      recyclability: alt.estimatedEcoScore,
+    },
+    reasonTags: [alt.reason, ...alt.whereToBuy.slice(0, 2)],
+    pointsPreview: Math.max(0, alt.estimatedEcoScore - 40),
+  }));
+}
+
 export interface Product {
   id: string;
   name: string;

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { EcoScoreBadge, EcoScoreBar } from '@/components/EcoScoreBadge';
+import { EcoScoreBar } from '@/components/EcoScoreBadge';
 import { BadgeDisplay } from '@/components/BadgeDisplay';
 import { Button } from '@/components/Button';
 import { Mascot } from '@/components/Mascot';
-import { mockUser, mockOrganizations, mockBadges } from '@/data/mockData';
+import { mockOrganizations } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Heart, 
   Settings, 
@@ -13,19 +14,36 @@ import {
   ChevronRight, 
   TrendingUp,
   Check,
-  ArrowLeft
+  ArrowLeft,
+  LogOut,
+  Copy,
+  X
 } from 'lucide-react';
 
-type ProfileTab = 'overview' | 'donate' | 'history';
+type ProfileTab = 'overview' | 'donate' | 'settings';
 
 export function ProfileScreen() {
+  const { userData, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
   const [donationStep, setDonationStep] = useState<'select' | 'org' | 'confirm' | 'success'>('select');
   const [selectedPoints, setSelectedPoints] = useState<number | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const pointOptions = [100, 250, 500, 1000];
   const pointsToDollars = (points: number) => (points / 100).toFixed(2);
+
+  // Use real user data or fallback
+  const user = userData || {
+    username: 'guest',
+    displayName: 'Guest User',
+    pointsBalance: 0,
+    ecoScore: 50,
+    streakCount: 0,
+    badges: [],
+    friendCode: 'ECO-XXXX-XXXX',
+  };
 
   const handleDonate = () => {
     setActiveTab('donate');
@@ -41,6 +59,81 @@ export function ProfileScreen() {
   const handleConfirmDonation = () => {
     setDonationStep('success');
   };
+
+  const handleCopyFriendCode = () => {
+    navigator.clipboard.writeText(user.friendCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  };
+
+  // Settings modal
+  if (showSettings) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg border-b border-border">
+          <div className="flex items-center gap-3 p-4">
+            <button
+              onClick={() => setShowSettings(false)}
+              className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="font-semibold text-lg">settings</h1>
+          </div>
+        </header>
+
+        <div className="p-4 space-y-4">
+          {/* Account section */}
+          <section className="space-y-2">
+            <h2 className="text-sm font-medium text-muted-foreground px-1">account</h2>
+            
+            <div className="p-4 rounded-2xl bg-card space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">email</span>
+                <span className="text-sm font-medium">{userData?.email || 'Not set'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">username</span>
+                <span className="text-sm font-medium">{user.username}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">friend code</span>
+                <button 
+                  onClick={handleCopyFriendCode}
+                  className="flex items-center gap-2 text-sm font-medium text-primary"
+                >
+                  {user.friendCode}
+                  {copiedCode ? (
+                    <Check className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Sign out */}
+          <Button 
+            variant="destructive" 
+            onClick={handleSignOut}
+            className="w-full"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            sign out
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (activeTab === 'donate') {
     return (
@@ -67,7 +160,7 @@ export function ProfileScreen() {
             <div className="space-y-6 animate-fade-in">
               <div className="text-center">
                 <p className="text-muted-foreground">you have</p>
-                <p className="text-4xl font-bold text-primary">{mockUser.pointsBalance.toLocaleString()}</p>
+                <p className="text-4xl font-bold text-primary">{user.pointsBalance.toLocaleString()}</p>
                 <p className="text-muted-foreground">points available</p>
               </div>
 
@@ -81,10 +174,10 @@ export function ProfileScreen() {
                         setSelectedPoints(pts);
                         setDonationStep('org');
                       }}
-                      disabled={pts > mockUser.pointsBalance}
+                      disabled={pts > user.pointsBalance}
                       className={cn(
                         'p-4 rounded-2xl border-2 transition-all text-center',
-                        pts <= mockUser.pointsBalance
+                        pts <= user.pointsBalance
                           ? 'border-border hover:border-primary bg-card'
                           : 'border-border bg-muted opacity-50 cursor-not-allowed'
                       )}
@@ -172,7 +265,10 @@ export function ProfileScreen() {
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="flex items-center justify-between p-4">
           <h1 className="text-xl font-bold">profile</h1>
-          <button className="p-2 rounded-xl hover:bg-muted transition-colors">
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="p-2 rounded-xl hover:bg-muted transition-colors"
+          >
             <Settings className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
@@ -188,13 +284,14 @@ export function ProfileScreen() {
           <div className="relative">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
-                {mockUser.username.charAt(0).toUpperCase()}
+                {user.username.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h2 className="text-xl font-bold">{mockUser.username}</h2>
+                <h2 className="text-xl font-bold">{user.displayName || user.username}</h2>
+                <p className="text-sm opacity-80">@{user.username}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Flame className="w-4 h-4" />
-                  <span className="text-sm">{mockUser.streakCount} day streak</span>
+                  <span className="text-sm">{user.streakCount} day streak</span>
                 </div>
               </div>
             </div>
@@ -202,11 +299,11 @@ export function ProfileScreen() {
             <div className="grid grid-cols-2 gap-4 mt-6">
               <div className="p-3 rounded-xl bg-white/10">
                 <p className="text-sm opacity-80">points</p>
-                <p className="text-2xl font-bold">{mockUser.pointsBalance.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{user.pointsBalance.toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-xl bg-white/10">
                 <p className="text-sm opacity-80">eco score</p>
-                <p className="text-2xl font-bold">{mockUser.personalEcoScore}</p>
+                <p className="text-2xl font-bold">{user.ecoScore}</p>
               </div>
             </div>
           </div>
@@ -232,9 +329,9 @@ export function ProfileScreen() {
               your eco score trend
             </h3>
           </div>
-          <EcoScoreBar score={mockUser.personalEcoScore} />
+          <EcoScoreBar score={user.ecoScore} />
           <p className="text-sm text-muted-foreground mt-2">
-            +5 points from last month. keep it up!
+            keep scanning and swapping to improve your score!
           </p>
         </section>
 
@@ -247,49 +344,57 @@ export function ProfileScreen() {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-4">
-            {mockBadges.slice(0, 4).map((badge) => (
-              <BadgeDisplay key={badge.id} badge={badge} size="md" showDetails />
-            ))}
-          </div>
-        </section>
-
-        {/* donation history */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">donation history</h3>
-          </div>
-          {mockUser.donationHistory.length > 0 ? (
-            <div className="space-y-2">
-              {mockUser.donationHistory.map((donation) => {
-                const org = mockOrganizations.find((o) => o.id === donation.organizationId);
-                return (
-                  <div
-                    key={donation.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-card"
-                  >
-                    <div>
-                      <p className="font-medium text-foreground">{org?.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {donation.date.toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-primary">${donation.amountDollars}</p>
-                      <p className="text-xs text-muted-foreground">{donation.pointsSpent} pts</p>
-                    </div>
-                  </div>
-                );
-              })}
+          {user.badges && user.badges.length > 0 ? (
+            <div className="grid grid-cols-4 gap-4">
+              {user.badges.slice(0, 4).map((badge) => (
+                <BadgeDisplay 
+                  key={badge.badgeId} 
+                  badge={{
+                    id: badge.badgeId,
+                    name: badge.name,
+                    description: badge.description || '',
+                    icon: badge.icon || '🏆',
+                    earnedAt: new Date(badge.earnedAt),
+                    category: badge.category as any,
+                  }} 
+                  size="md" 
+                  showDetails 
+                />
+              ))}
             </div>
           ) : (
             <div className="p-6 rounded-2xl bg-card text-center">
               <Mascot size="md" mood="thinking" />
               <p className="mt-4 text-muted-foreground">
-                no donations yet. turn points into impact when you're ready.
+                no badges yet. start scanning and swapping to earn badges!
               </p>
             </div>
           )}
+        </section>
+
+        {/* friend code */}
+        <section className="p-4 rounded-2xl bg-card">
+          <h3 className="font-semibold mb-2">your friend code</h3>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 px-4 py-3 bg-muted rounded-xl font-mono text-sm">
+              {user.friendCode}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyFriendCode}
+              className="shrink-0"
+            >
+              {copiedCode ? (
+                <Check className="w-4 h-4 text-green-500" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            share this code with friends to add each other
+          </p>
         </section>
       </div>
     </div>
