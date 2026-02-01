@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/Button';
 import { EcoScoreBadge } from '@/components/EcoScoreBadge';
 import { Mascot } from '@/components/Mascot';
@@ -24,6 +24,7 @@ import {
   BadgeCheck,
   ShoppingBag,
 } from 'lucide-react';
+import { speakText } from '@/services/elevenLabsService';
 
 interface AnalysisResultsScreenProps {
   analysis: GeminiAnalysisResult;
@@ -63,6 +64,62 @@ export function AnalysisResultsScreen({
     setEarnedPoints(points);
     setShowCelebration(true);
   };
+
+  // Play voice effect automatically when celebration screen appears - reads the text displayed on screen
+  useEffect(() => {
+    // Only run when celebration screen is shown and we have earned points
+    if (!showCelebration || earnedPoints === 0) {
+      return;
+    }
+
+    console.log('🔍 Voice effect useEffect triggered:', { showCelebration, earnedPoints });
+    console.log('✅ Celebration screen detected - playing voice automatically');
+    
+    const apiKey = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
+    
+    console.log('🔑 API Key check:', { 
+      hasKey: !!apiKey, 
+      keyLength: apiKey?.length || 0,
+      keyPreview: apiKey ? `${apiKey.substring(0, 10)}...` : 'missing'
+    });
+    
+    if (!apiKey) {
+      console.warn('⚠️ Eleven Labs API key not found. Voice feature disabled.');
+      console.log('Please add VITE_ELEVEN_LABS_API_KEY to your .env file and restart the dev server');
+      return;
+    }
+
+    // Build the text that's displayed on screen (matching exactly what user sees)
+    const textToSpeak = `nice swap! you earned ${earnedPoints} points. you just made a greener choice. your eco score is improving!`;
+
+    console.log('🎤 Playing voice automatically:', textToSpeak);
+
+    // Play voice automatically after a short delay to ensure screen is fully rendered
+    const playVoice = async () => {
+      try {
+        console.log('🚀 Starting automatic voice playback...');
+        await speakText(textToSpeak, apiKey);
+        console.log('✅ Voice played successfully');
+      } catch (error) {
+        console.error('❌ Error playing voice:', error);
+        if (error instanceof Error) {
+          console.error('Error details:', error.message);
+          console.error('Error stack:', error.stack);
+        }
+      }
+    };
+
+    // Small delay to ensure celebration screen is fully rendered and handle browser autoplay restrictions
+    // Since the user just clicked a button, autoplay should be allowed
+    const timeoutId = setTimeout(() => {
+      playVoice();
+    }, 300);
+
+    // Cleanup timeout if component unmounts
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [showCelebration, earnedPoints]);
 
   const scoreLevel = getEcoScoreLevel(analysis.ecoScore);
   const scoreColors = {
