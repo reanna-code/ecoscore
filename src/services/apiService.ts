@@ -246,6 +246,27 @@ export async function getBatchReceipts(limit = 10) {
   return response.json();
 }
 
+// ============ Certificates API ============
+
+export async function mintCertificateNft(donationAmount: number, ngoName?: string, txSignature?: string) {
+  return fetchWithAuth('/certificates/mint', {
+    method: 'POST',
+    body: JSON.stringify({ donationAmount, ngoName, txSignature }),
+  });
+}
+
+export async function getCertificates() {
+  return fetchWithAuth('/certificates');
+}
+
+export async function getWallet() {
+  return fetchWithAuth('/certificates/wallet');
+}
+
+export async function devClearCertificates() {
+  return fetchWithAuth('/certificates/dev-clear', { method: 'DELETE' });
+}
+
 // ============ Points API ============
 
 export async function getPointsBalance() {

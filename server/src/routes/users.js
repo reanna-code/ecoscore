@@ -104,6 +104,10 @@ router.get('/me', authenticateToken, async (req, res) => {
           { badgeId: 'eco_warrior', name: 'Eco Warrior', category: 'general', earnedAt: new Date().toISOString() }
         ],
         friends: [],
+        scanHistory: [
+          { productName: 'Plastic Bottles', brand: 'Generic', ecoScore: 35, scannedAt: new Date().toISOString(), swappedTo: { productName: 'Reusable Bottle', brand: 'EcoFlow', ecoScore: 85 } },
+          { productName: 'Paper Towels', brand: 'Bounty', ecoScore: 40, scannedAt: new Date().toISOString(), swappedTo: { productName: 'Bamboo Towels', brand: 'Grove', ecoScore: 78 } }
+        ],
         isPublicProfile: true
       };
       return res.json({ user: mockUser });

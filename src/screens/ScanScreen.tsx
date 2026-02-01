@@ -280,7 +280,7 @@ export function ScanScreen() {
       />
 
       {/* bottom controls */}
-      <div className="bg-background p-6 pb-24 space-y-4">
+      <div className="bg-background p-6 pb-32 space-y-4">
         {error && (
           <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-sm text-center">
             {error}
