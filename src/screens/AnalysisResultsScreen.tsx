@@ -115,8 +115,8 @@ export function AnalysisResultsScreen({
   // Show declined screen with sad mascot
   if (showDeclined) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm text-center space-y-8 animate-slide-up">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative">
+        <div className="w-full max-w-sm text-center space-y-8 animate-slide-up relative" style={{ zIndex: 20 }}>
           <Mascot size="xl" mood="sad" />
 
           <div className="space-y-3">

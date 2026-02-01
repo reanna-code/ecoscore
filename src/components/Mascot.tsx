@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
 export type MascotMood = 'happy' | 'excited' | 'waving' | 'thinking' | 'sad';
@@ -16,24 +17,187 @@ const sizeMap = {
   xl: 192,
 };
 
+// Pollution background component for sad mood - covers entire viewport
+// Uses portal to render at body level, bypassing any container clipping
+function PollutionBackground() {
+  const content = (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 5 }}>
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-gray-400/40 via-gray-300/30 to-gray-400/50" />
+      
+      {/* Clouds - scattered across the screen */}
+      <div className="absolute top-[5%] left-[5%] opacity-60 animate-pulse">
+        <svg width="120" height="60" viewBox="0 0 120 60">
+          <ellipse cx="40" cy="35" rx="35" ry="18" fill="hsl(0, 0%, 55%)" />
+          <ellipse cx="70" cy="28" rx="30" ry="15" fill="hsl(0, 0%, 50%)" />
+          <ellipse cx="25" cy="40" rx="22" ry="12" fill="hsl(0, 0%, 52%)" />
+          <ellipse cx="90" cy="35" rx="25" ry="14" fill="hsl(0, 0%, 48%)" />
+        </svg>
+      </div>
+      
+      <div className="absolute top-[8%] right-[10%] opacity-50">
+        <svg width="150" height="70" viewBox="0 0 150 70">
+          <ellipse cx="50" cy="40" rx="40" ry="20" fill="hsl(0, 0%, 52%)" />
+          <ellipse cx="90" cy="32" rx="35" ry="17" fill="hsl(0, 0%, 48%)" />
+          <ellipse cx="30" cy="45" rx="28" ry="14" fill="hsl(0, 0%, 55%)" />
+          <ellipse cx="120" cy="38" rx="25" ry="13" fill="hsl(0, 0%, 50%)" />
+        </svg>
+      </div>
+      
+      <div className="absolute top-[3%] left-[40%] opacity-55">
+        <svg width="100" height="50" viewBox="0 0 100 50">
+          <ellipse cx="35" cy="28" rx="30" ry="15" fill="hsl(0, 0%, 58%)" />
+          <ellipse cx="65" cy="22" rx="25" ry="12" fill="hsl(0, 0%, 53%)" />
+          <ellipse cx="20" cy="32" rx="18" ry="10" fill="hsl(0, 0%, 56%)" />
+        </svg>
+      </div>
+      
+      <div className="absolute top-[12%] left-[70%] opacity-45">
+        <svg width="90" height="45" viewBox="0 0 90 45">
+          <ellipse cx="30" cy="25" rx="25" ry="13" fill="hsl(0, 0%, 50%)" />
+          <ellipse cx="55" cy="20" rx="22" ry="11" fill="hsl(0, 0%, 55%)" />
+          <ellipse cx="75" cy="28" rx="18" ry="10" fill="hsl(0, 0%, 52%)" />
+        </svg>
+      </div>
+      
+      {/* Left factory */}
+      <div className="absolute bottom-0 left-[2%]">
+        <svg width="140" height="220" viewBox="0 0 140 220">
+          {/* Main building */}
+          <rect x="10" y="100" width="80" height="120" fill="hsl(0, 0%, 22%)" />
+          <rect x="25" y="60" width="30" height="40" fill="hsl(0, 0%, 28%)" />
+          {/* Smokestack */}
+          <rect x="32" y="20" width="16" height="40" fill="hsl(0, 0%, 25%)" />
+          {/* Windows */}
+          <rect x="25" y="120" width="15" height="20" fill="hsl(45, 80%, 50%)" opacity="0.6" />
+          <rect x="50" y="120" width="15" height="20" fill="hsl(45, 80%, 50%)" opacity="0.4" />
+          <rect x="25" y="160" width="15" height="20" fill="hsl(45, 80%, 50%)" opacity="0.3" />
+          <rect x="50" y="160" width="15" height="20" fill="hsl(45, 80%, 50%)" opacity="0.5" />
+          {/* Second smokestack */}
+          <rect x="100" y="80" width="25" height="140" fill="hsl(0, 0%, 20%)" />
+          <rect x="103" y="50" width="12" height="30" fill="hsl(0, 0%, 26%)" />
+          
+          {/* Smoke puffs - animated */}
+          <g className="animate-smoke-rise">
+            <ellipse cx="40" cy="10" rx="18" ry="10" fill="hsl(0, 0%, 45%)" opacity="0.6" />
+            <ellipse cx="50" cy="0" rx="14" ry="8" fill="hsl(0, 0%, 50%)" opacity="0.5" />
+            <ellipse cx="35" cy="-15" rx="20" ry="11" fill="hsl(0, 0%, 42%)" opacity="0.4" />
+          </g>
+          <g className="animate-smoke-rise-delayed">
+            <ellipse cx="109" cy="40" rx="15" ry="8" fill="hsl(0, 0%, 48%)" opacity="0.5" />
+            <ellipse cx="115" cy="25" rx="18" ry="10" fill="hsl(0, 0%, 45%)" opacity="0.4" />
+            <ellipse cx="105" cy="10" rx="22" ry="12" fill="hsl(0, 0%, 40%)" opacity="0.3" />
+          </g>
+        </svg>
+      </div>
+      
+      {/* Right factory */}
+      <div className="absolute bottom-0 right-[3%]">
+        <svg width="160" height="200" viewBox="0 0 160 200">
+          {/* Main building */}
+          <rect x="40" y="80" width="100" height="120" fill="hsl(0, 0%, 20%)" />
+          <rect x="60" y="50" width="35" height="30" fill="hsl(0, 0%, 26%)" />
+          {/* Smokestack */}
+          <rect x="70" y="10" width="18" height="40" fill="hsl(0, 0%, 23%)" />
+          {/* Windows */}
+          <rect x="55" y="100" width="18" height="25" fill="hsl(45, 80%, 50%)" opacity="0.5" />
+          <rect x="85" y="100" width="18" height="25" fill="hsl(45, 80%, 50%)" opacity="0.3" />
+          <rect x="115" y="100" width="18" height="25" fill="hsl(45, 80%, 50%)" opacity="0.6" />
+          <rect x="55" y="145" width="18" height="25" fill="hsl(45, 80%, 50%)" opacity="0.4" />
+          <rect x="85" y="145" width="18" height="25" fill="hsl(45, 80%, 50%)" opacity="0.7" />
+          <rect x="115" y="145" width="18" height="25" fill="hsl(45, 80%, 50%)" opacity="0.3" />
+          {/* Extra tower */}
+          <rect x="0" y="120" width="35" height="80" fill="hsl(0, 0%, 24%)" />
+          <rect x="8" y="90" width="14" height="30" fill="hsl(0, 0%, 28%)" />
+          
+          {/* Smoke puffs */}
+          <g className="animate-smoke-rise">
+            <ellipse cx="79" cy="0" rx="20" ry="11" fill="hsl(0, 0%, 42%)" opacity="0.6" />
+            <ellipse cx="85" cy="-15" rx="16" ry="9" fill="hsl(0, 0%, 48%)" opacity="0.5" />
+            <ellipse cx="75" cy="-30" rx="24" ry="13" fill="hsl(0, 0%, 40%)" opacity="0.35" />
+          </g>
+          <g className="animate-smoke-rise-delayed">
+            <ellipse cx="15" cy="80" rx="12" ry="7" fill="hsl(0, 0%, 50%)" opacity="0.5" />
+            <ellipse cx="18" cy="65" rx="16" ry="9" fill="hsl(0, 0%, 45%)" opacity="0.4" />
+            <ellipse cx="12" cy="50" rx="20" ry="11" fill="hsl(0, 0%, 42%)" opacity="0.3" />
+          </g>
+        </svg>
+      </div>
+      
+      {/* Middle background factory (smaller/farther) */}
+      <div className="absolute bottom-0 left-[35%] opacity-40">
+        <svg width="100" height="140" viewBox="0 0 100 140">
+          <rect x="20" y="60" width="60" height="80" fill="hsl(0, 0%, 28%)" />
+          <rect x="35" y="35" width="20" height="25" fill="hsl(0, 0%, 32%)" />
+          <rect x="40" y="10" width="10" height="25" fill="hsl(0, 0%, 30%)" />
+          <g className="animate-smoke-rise">
+            <ellipse cx="45" cy="0" rx="12" ry="7" fill="hsl(0, 0%, 50%)" opacity="0.5" />
+            <ellipse cx="48" cy="-12" rx="15" ry="8" fill="hsl(0, 0%, 45%)" opacity="0.4" />
+          </g>
+        </svg>
+      </div>
+      
+      {/* Another distant factory */}
+      <div className="absolute bottom-0 right-[30%] opacity-35">
+        <svg width="80" height="120" viewBox="0 0 80 120">
+          <rect x="15" y="50" width="50" height="70" fill="hsl(0, 0%, 30%)" />
+          <rect x="25" y="30" width="18" height="20" fill="hsl(0, 0%, 34%)" />
+          <rect x="30" y="8" width="8" height="22" fill="hsl(0, 0%, 32%)" />
+          <g className="animate-smoke-rise-delayed">
+            <ellipse cx="34" cy="0" rx="10" ry="6" fill="hsl(0, 0%, 52%)" opacity="0.5" />
+            <ellipse cx="36" cy="-10" rx="13" ry="7" fill="hsl(0, 0%, 48%)" opacity="0.4" />
+          </g>
+        </svg>
+      </div>
+      
+      {/* Floating smoke particles across screen */}
+      <div className="absolute top-[20%] left-[15%] opacity-30 animate-float-slow">
+        <svg width="60" height="40" viewBox="0 0 60 40">
+          <ellipse cx="30" cy="20" rx="25" ry="15" fill="hsl(0, 0%, 50%)" />
+        </svg>
+      </div>
+      <div className="absolute top-[25%] right-[20%] opacity-25 animate-float-slow-delayed">
+        <svg width="80" height="50" viewBox="0 0 80 50">
+          <ellipse cx="40" cy="25" rx="35" ry="20" fill="hsl(0, 0%, 48%)" />
+        </svg>
+      </div>
+      <div className="absolute top-[35%] left-[50%] opacity-20 animate-float-slow">
+        <svg width="70" height="45" viewBox="0 0 70 45">
+          <ellipse cx="35" cy="22" rx="30" ry="18" fill="hsl(0, 0%, 52%)" />
+        </svg>
+      </div>
+      
+      {/* Polluted ground */}
+      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-stone-600/60 to-transparent" />
+    </div>
+  );
+  
+  // Use portal to render at document body level, bypassing any container clipping
+  return createPortal(content, document.body);
+}
+
 export function Mascot({ size = 'md', mood = 'happy', animate = true, className }: MascotProps) {
   const px = sizeMap[size];
 
   return (
-    <div
-      className={cn(
-        'inline-flex items-center justify-center flex-shrink-0',
-        animate && mood === 'excited' && 'animate-mascot-jump',
-        animate && mood === 'happy' && 'animate-float',
-        animate && mood === 'waving' && 'animate-float',
-        animate && mood === 'thinking' && 'animate-float',
-        animate && mood === 'sad' && '',
-        className
-      )}
-      style={{ width: px, height: px }}
-      aria-hidden
-    >
-      <svg
+    <>
+      {/* Render pollution background when sad - covers entire viewport */}
+      {mood === 'sad' && <PollutionBackground />}
+      
+      <div
+        className={cn(
+          'inline-flex items-center justify-center flex-shrink-0 relative',
+          animate && mood === 'excited' && 'animate-mascot-jump',
+          animate && mood === 'happy' && 'animate-float',
+          animate && mood === 'waving' && 'animate-float',
+          animate && mood === 'thinking' && 'animate-float',
+          animate && mood === 'sad' && '',
+          className
+        )}
+        style={{ width: px, height: px, zIndex: 10 }}
+        aria-hidden
+      >
+        <svg
         viewBox="0 0 120 140"
         className="w-full h-full"
         fill="none"
@@ -73,11 +237,11 @@ export function Mascot({ size = 'md', mood = 'happy', animate = true, className 
           </filter>
         </defs>
 
-        {/* Fake ground for sad mood */}
+        {/* Fake ground shadow for sad mood */}
         {mood === 'sad' && (
           <g>
-            <ellipse cx="60" cy="137" rx="35" ry="6" fill="hsl(150, 15%, 85%)" opacity="0.5" />
-            <ellipse cx="60" cy="137" rx="28" ry="4" fill="hsl(150, 15%, 75%)" opacity="0.3" />
+            <ellipse cx="60" cy="137" rx="35" ry="6" fill="hsl(30, 10%, 45%)" opacity="0.5" />
+            <ellipse cx="60" cy="137" rx="28" ry="4" fill="hsl(25, 12%, 40%)" opacity="0.3" />
           </g>
         )}
         
@@ -291,7 +455,8 @@ export function Mascot({ size = 'md', mood = 'happy', animate = true, className 
           </g>
         )}
       </svg>
-    </div>
+      </div>
+    </>
   );
 }
 
