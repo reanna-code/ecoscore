@@ -248,10 +248,14 @@ export async function getBatchReceipts(limit = 10) {
 
 // ============ Certificates API ============
 
-export async function mintCertificateNft(donationAmount: number, ngoName?: string, txSignature?: string) {
+export async function getMilestones() {
+  return fetchWithAuth('/certificates/milestones');
+}
+
+export async function mintCertificateNft(milestone: number, ngoName?: string, txSignature?: string) {
   return fetchWithAuth('/certificates/mint', {
     method: 'POST',
-    body: JSON.stringify({ donationAmount, ngoName, txSignature }),
+    body: JSON.stringify({ milestone, ngoName, txSignature }),
   });
 }
 

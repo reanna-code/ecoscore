@@ -81,6 +81,14 @@ export function generateUserWallet() {
  * @param {Object} options - Minting options
  * @returns {Object} Minting result
  */
+// Milestone badge names
+const MILESTONE_NAMES = {
+  5: 'Seedling',
+  25: 'Sapling',
+  50: 'Tree',
+  100: 'Forest Guardian'
+};
+
 export async function mintImpactCertificate(options) {
   const {
     recipientPublicKey,
@@ -89,19 +97,23 @@ export async function mintImpactCertificate(options) {
     co2Offset,
     ngoName,
     txSignature,
+    milestone,
     date = new Date()
   } = options;
 
   await initialize();
 
-  console.log(`Minting NFT for ${userName} to ${recipientPublicKey}...`);
+  const badgeName = MILESTONE_NAMES[milestone] || 'Impact';
+  console.log(`Minting $${milestone} "${badgeName}" badge NFT for ${userName}...`);
 
-  // 1. Generate certificate image using Gemini AI
+  // 1. Generate certificate image
   const imageUri = await generateCertificateImage({
     userName,
-    donationAmount,
+    donationAmount: milestone, // Use milestone amount for consistent badge
     co2Offset,
-    ngoName
+    ngoName,
+    milestone,
+    badgeName
   });
 
   const imageHttpUrl = ipfsToHttp(imageUri);
@@ -109,17 +121,18 @@ export async function mintImpactCertificate(options) {
 
   // 3. Create metadata
   const metadata = {
-    name: `Ecoscore Impact Certificate`,
-    symbol: 'ECOIMPACT',
-    description: `This certificate verifies that ${userName} donated $${donationAmount.toFixed(2)} to ${ngoName || 'climate organizations'}, helping offset ${co2Offset} kg of CO2. Verified on Solana blockchain.`,
+    name: `Ecoscore ${badgeName} Badge`,
+    symbol: 'ECOBADGE',
+    description: `${badgeName} Badge: ${userName} reached the $${milestone} donation milestone! This soulbound badge proves your commitment to fighting climate change. CO2 offset: ${co2Offset} kg.`,
     image: imageHttpUrl || imageUri,
     external_url: 'https://ecoscore.app',
     attributes: [
-      { trait_type: 'Donation Amount', value: `$${donationAmount.toFixed(2)}` },
+      { trait_type: 'Badge Tier', value: badgeName },
+      { trait_type: 'Milestone', value: `$${milestone}` },
       { trait_type: 'CO2 Offset', value: `${co2Offset} kg` },
-      { trait_type: 'NGO', value: ngoName || 'Multiple' },
-      { trait_type: 'Date', value: date.toISOString().split('T')[0] },
-      { trait_type: 'Verified Transaction', value: txSignature || 'N/A' }
+      { trait_type: 'NGO', value: ngoName || 'Climate Action' },
+      { trait_type: 'Date Earned', value: date.toISOString().split('T')[0] },
+      { trait_type: 'Type', value: 'Soulbound Achievement' }
     ],
     properties: {
       category: 'image',
@@ -140,8 +153,8 @@ export async function mintImpactCertificate(options) {
   try {
     const { nft, response } = await metaplex.nfts().create({
       uri: ipfsToHttp(metadataUri) || metadataUri,
-      name: `Ecoscore Impact: $${donationAmount.toFixed(0)}`,
-      symbol: 'ECOIMPACT',
+      name: `Ecoscore ${badgeName} ($${milestone})`,
+      symbol: 'ECOBADGE',
       sellerFeeBasisPoints: 0, // No royalties
       tokenOwner: recipientPubkey,
       isMutable: false, // Certificate is permanent
