@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/Button';
 import { ProductCard } from '@/components/ProductCard';
@@ -7,6 +7,7 @@ import { Mascot, MascotMessage } from '@/components/Mascot';
 import { Product, Alternative, calculatePoints } from '@/types/ecoscore';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Check, Share2, Sparkles } from 'lucide-react';
+import { speakText } from '@/services/elevenLabsService';
 
 interface CompareResultsScreenProps {
   scannedProduct: Product;
@@ -58,6 +59,75 @@ export function CompareResultsScreen({
       setShowCelebration(true);
     }
   };
+
+  // Play voice effect when celebration screen appears - reads the text displayed on screen
+  useEffect(() => {
+    console.log('🔍 Voice effect useEffect triggered:', { showCelebration, choseGreener, earnedPoints });
+    
+    if (showCelebration && choseGreener !== null) {
+      console.log('✅ Conditions met for voice playback');
+      const apiKey = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
+      
+      console.log('🔑 API Key check:', { 
+        hasKey: !!apiKey, 
+        keyLength: apiKey?.length || 0,
+        keyPreview: apiKey ? `${apiKey.substring(0, 10)}...` : 'missing'
+      });
+      
+      if (!apiKey) {
+        console.warn('⚠️ Eleven Labs API key not found. Voice feature disabled.');
+        console.log('Please add VITE_ELEVEN_LABS_API_KEY to your .env file and restart the dev server');
+        return;
+      }
+
+      // Build the text that's displayed on screen (matching exactly what user sees)
+      const pickedLessEco = !choseGreener;
+      let textToSpeak = '';
+      let voiceId: string | undefined = undefined;
+
+      if (pickedLessEco) {
+        // Text for less eco-friendly choice - matches screen text
+        textToSpeak = "that's okay! next time try a greener pick — your leaf friend believes in you!";
+        // Use specific voice ID for original choice
+        voiceId = '5f9yB2oppQMBp00ATIIr';
+      } else {
+        // Text for greener choice - matches screen text including points badge
+        textToSpeak = `nice swap! you earned ${earnedPoints} points. you just boosted your impact. your eco score is improving!`;
+        // Use default voice (Antoni) for greener choice
+      }
+
+      console.log('🎤 Playing voice:', textToSpeak);
+      if (voiceId) {
+        console.log('🎙️ Using custom voice ID:', voiceId);
+      }
+
+      // Small delay to ensure screen is rendered and handle browser autoplay
+      const playVoice = async () => {
+        try {
+          console.log('🚀 Starting voice playback...');
+          await speakText(textToSpeak, apiKey, voiceId);
+          console.log('✅ Voice played successfully');
+        } catch (error) {
+          console.error('❌ Error playing voice:', error);
+          if (error instanceof Error) {
+            console.error('Error details:', error.message);
+            console.error('Error stack:', error.stack);
+          }
+        }
+      };
+
+      // Delay slightly to ensure UI is ready and handle autoplay restrictions
+      setTimeout(() => {
+        playVoice();
+      }, 500);
+    } else {
+      console.log('⏸️ Voice effect conditions not met:', { 
+        showCelebration, 
+        choseGreener, 
+        reason: !showCelebration ? 'showCelebration is false' : 'choseGreener is null'
+      });
+    }
+  }, [showCelebration, choseGreener, earnedPoints]);
 
   const handleShare = async () => {
     console.log('Share button clicked!', { earnedPoints });

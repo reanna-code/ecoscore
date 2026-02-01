@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/Button';
 import { EcoScoreBadge } from '@/components/EcoScoreBadge';
 import { Mascot } from '@/components/Mascot';
@@ -34,13 +34,18 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  Mic,
+  MicOff,
 } from 'lucide-react';
+import { speakText } from '@/services/elevenLabsService';
+import { analyzeProductFromText } from '@/services/geminiService';
 
 interface AnalysisResultsScreenProps {
   analysis: GeminiAnalysisResult;
   capturedImages: string[];
   onBack: () => void;
   onScanAgain: () => void;
+  onAnalysisUpdate?: (newAnalysis: GeminiAnalysisResult) => void;
 }
 
 // Helper to format price display
@@ -79,6 +84,7 @@ export function AnalysisResultsScreen({
   capturedImages,
   onBack,
   onScanAgain,
+  onAnalysisUpdate,
 }: AnalysisResultsScreenProps) {
   const { addPoints, refreshUserData } = useAuth();
   const [selectedAlternative, setSelectedAlternative] = useState<number | null>(null);
@@ -86,6 +92,157 @@ export function AnalysisResultsScreen({
   const [showDeclined, setShowDeclined] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isAnalyzingVoice, setIsAnalyzingVoice] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Type declaration for Speech Recognition API
+  interface SpeechRecognition extends EventTarget {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    start(): void;
+    stop(): void;
+    abort(): void;
+    onresult: (event: SpeechRecognitionEvent) => void;
+    onerror: (event: SpeechRecognitionErrorEvent) => void;
+    onend: () => void;
+  }
+
+  interface SpeechRecognitionEvent {
+    resultIndex: number;
+    results: SpeechRecognitionResultList;
+  }
+
+  interface SpeechRecognitionErrorEvent {
+    error: string;
+    message: string;
+  }
+
+  interface SpeechRecognitionResultList {
+    length: number;
+    item(index: number): SpeechRecognitionResult;
+    [index: number]: SpeechRecognitionResult;
+  }
+
+  interface SpeechRecognitionResult {
+    length: number;
+    item(index: number): SpeechRecognitionAlternative;
+    [index: number]: SpeechRecognitionAlternative;
+    isFinal: boolean;
+  }
+
+  interface SpeechRecognitionAlternative {
+    transcript: string;
+    confidence: number;
+  }
+
+  const handleUseVoice = async () => {
+    const apiKey = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
+    const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      setVoiceError('Eleven Labs API key not found');
+      return;
+    }
+    
+    if (!geminiApiKey) {
+      setVoiceError('Gemini API key not found');
+      return;
+    }
+
+    // Check if Speech Recognition is available
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceError('Speech recognition is not supported in your browser');
+      return;
+    }
+
+    // Prompt user with voice to describe the product
+    try {
+      await speakText('Please describe the product. Include details like the product name, brand, materials, and category.', apiKey);
+    } catch (error) {
+      console.error('Error playing prompt:', error);
+    }
+
+    // Initialize speech recognition
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    let transcript = '';
+
+    recognition.onresult = async (event: SpeechRecognitionEvent) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript + ' ';
+      }
+      
+      console.log('🎤 Voice transcript:', transcript);
+      
+      // Stop recording
+      setIsRecording(false);
+      
+      // Analyze the product description
+      setIsAnalyzingVoice(true);
+      setVoiceError(null);
+      
+      try {
+        const result = await analyzeProductFromText(transcript.trim(), geminiApiKey);
+        
+        console.log('✅ Product analyzed from voice:', result);
+        
+        // Update the analysis if callback is provided
+        if (onAnalysisUpdate) {
+          onAnalysisUpdate(result);
+        } else {
+          // Fallback: show success message
+          alert('Product analyzed successfully! The results have been updated.');
+        }
+      } catch (error) {
+        console.error('❌ Error analyzing product from voice:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        if (errorMessage.includes('product not found') || errorMessage.includes('no alternative found')) {
+          setVoiceError('product not found. no alternative found');
+          // Also speak the error
+          try {
+            await speakText('product not found. no alternative found', apiKey);
+          } catch (speakError) {
+            console.error('Error speaking error message:', speakError);
+          }
+        } else {
+          setVoiceError(errorMessage);
+        }
+      } finally {
+        setIsAnalyzingVoice(false);
+      }
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error:', event.error);
+      setIsRecording(false);
+      setIsAnalyzingVoice(false);
+      setVoiceError(`Speech recognition error: ${event.message || event.error}`);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    setVoiceError(null);
+    recognition.start();
+  };
+
+  const handleStopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
+  };
 
   const handleConfirmSwap = async () => {
     if (selectedAlternative === null) return;
@@ -100,9 +257,124 @@ export function AnalysisResultsScreen({
     setShowCelebration(true);
   };
 
+  // Play voice effect automatically when celebration screen appears - reads the text displayed on screen
+  useEffect(() => {
+    // Only run when celebration screen is shown and we have earned points
+    if (!showCelebration || earnedPoints === 0) {
+      return;
+    }
+
+    console.log('🔍 Voice effect useEffect triggered:', { showCelebration, earnedPoints });
+    console.log('✅ Celebration screen detected - playing voice automatically');
+    
+    const apiKey = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
+    
+    console.log('🔑 API Key check:', { 
+      hasKey: !!apiKey, 
+      keyLength: apiKey?.length || 0,
+      keyPreview: apiKey ? `${apiKey.substring(0, 10)}...` : 'missing'
+    });
+    
+    if (!apiKey) {
+      console.warn('⚠️ Eleven Labs API key not found. Voice feature disabled.');
+      console.log('Please add VITE_ELEVEN_LABS_API_KEY to your .env file and restart the dev server');
+      return;
+    }
+
+    // Build the text that's displayed on screen (matching exactly what user sees)
+    const textToSpeak = `nice swap! you earned ${earnedPoints} points. you just made a greener choice. your eco score is improving!`;
+
+    console.log('🎤 Playing voice automatically:', textToSpeak);
+
+    // Play voice automatically after a short delay to ensure screen is fully rendered
+    const playVoice = async () => {
+      try {
+        console.log('🚀 Starting automatic voice playback...');
+        await speakText(textToSpeak, apiKey);
+        console.log('✅ Voice played successfully');
+      } catch (error) {
+        console.error('❌ Error playing voice:', error);
+        if (error instanceof Error) {
+          console.error('Error details:', error.message);
+          console.error('Error stack:', error.stack);
+        }
+      }
+    };
+
+    // Small delay to ensure celebration screen is fully rendered and handle browser autoplay restrictions
+    // Since the user just clicked a button, autoplay should be allowed
+    const timeoutId = setTimeout(() => {
+      playVoice();
+    }, 300);
+
+    // Cleanup timeout if component unmounts
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [showCelebration, earnedPoints]);
+
   const handleDeclineAll = () => {
     setShowDeclined(true);
   };
+
+  // Play voice effect automatically when declined screen appears - reads the text displayed on screen
+  useEffect(() => {
+    // Only run when declined screen is shown
+    if (!showDeclined) {
+      return;
+    }
+
+    console.log('🔍 Voice effect useEffect triggered for declined screen:', { showDeclined });
+    console.log('✅ Declined screen detected - playing voice automatically');
+    
+    const apiKey = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
+    
+    console.log('🔑 API Key check:', { 
+      hasKey: !!apiKey, 
+      keyLength: apiKey?.length || 0,
+      keyPreview: apiKey ? `${apiKey.substring(0, 10)}...` : 'missing'
+    });
+    
+    if (!apiKey) {
+      console.warn('⚠️ Eleven Labs API key not found. Voice feature disabled.');
+      console.log('Please add VITE_ELEVEN_LABS_API_KEY to your .env file and restart the dev server');
+      return;
+    }
+
+    // Build the text that's displayed on screen (matching exactly what user sees)
+    const textToSpeak = "maybe next time. no worries! every small step counts. we'll find more eco-friendly options for you in the future.";
+        // Use specific voice ID for declined choice
+        const voiceId = '5f9yB2oppQMBp00ATIIr';
+
+    console.log('🎤 Playing voice automatically:', textToSpeak);
+    console.log('🎙️ Using custom voice ID:', voiceId);
+
+    // Play voice automatically after a short delay to ensure screen is fully rendered
+    const playVoice = async () => {
+      try {
+        console.log('🚀 Starting automatic voice playback...');
+        await speakText(textToSpeak, apiKey, voiceId);
+        console.log('✅ Voice played successfully');
+      } catch (error) {
+        console.error('❌ Error playing voice:', error);
+        if (error instanceof Error) {
+          console.error('Error details:', error.message);
+          console.error('Error stack:', error.stack);
+        }
+      }
+    };
+
+    // Small delay to ensure declined screen is fully rendered and handle browser autoplay restrictions
+    // Since the user just clicked a button, autoplay should be allowed
+    const timeoutId = setTimeout(() => {
+      playVoice();
+    }, 300);
+
+    // Cleanup timeout if component unmounts
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [showDeclined]);
 
   const scoreLevel = getEcoScoreLevel(analysis.ecoScore);
   const scoreColors = {
@@ -741,19 +1013,59 @@ export function AnalysisResultsScreen({
                   </div>
                 </button>
 
-                {/* Shop Now button - uses searchUrl for reliable Google Shopping search */}
-                {(alt.searchUrl || alt.productUrl) && (
-                  <a
-                    href={alt.searchUrl || alt.productUrl || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
+                {/* Shop Now and Use Voice buttons */}
+                <div className="mt-3 flex gap-2">
+                  {(alt.searchUrl || alt.productUrl) && (
+                    <a
+                      href={alt.searchUrl || alt.productUrl || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      Shop Now
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isRecording) {
+                        handleStopRecording();
+                      } else {
+                        handleUseVoice();
+                      }
+                    }}
+                    disabled={isAnalyzingVoice}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-medium text-sm transition-colors ${
+                      isRecording
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-muted text-foreground hover:bg-muted/80'
+                    } ${isAnalyzingVoice ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    <ShoppingBag className="w-4 h-4" />
-                    Shop Now
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                    {isRecording ? (
+                      <>
+                        <MicOff className="w-4 h-4" />
+                        Stop
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-4 h-4" />
+                        Use Voice
+                      </>
+                    )}
+                  </button>
+                </div>
+                {voiceError && (
+                  <div className="mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-sm">
+                    {voiceError}
+                  </div>
+                )}
+                {isAnalyzingVoice && (
+                  <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 text-sm text-center">
+                    Analyzing product description...
+                  </div>
                 )}
               </div>
             ))}

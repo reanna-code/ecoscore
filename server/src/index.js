@@ -26,11 +26,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-// In development, allow all origins for easier testing
+// CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like mobile apps, curl, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
     
     // In development, allow all localhost and local network IPs
     const allowedPatterns = [
@@ -45,13 +47,29 @@ const corsOptions = {
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
+      console.warn('⚠️  CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
+
+// Request logging middleware (for debugging)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    console.log(`🔍 OPTIONS preflight: ${req.path} | Origin: ${req.headers.origin || 'none'}`);
+  } else {
+    console.log(`📥 ${req.method} ${req.path} | Origin: ${req.headers.origin || 'none'}`);
+  }
+  next();
+});
+
 app.use(express.json());
 
 // Serve static files (NFT images)
@@ -89,6 +107,13 @@ app.use('/api/certificates', certificateRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  // Handle CORS errors specifically
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      error: 'CORS: Origin not allowed'
+    });
+  }
+  
   console.error('Error:', err);
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error'
