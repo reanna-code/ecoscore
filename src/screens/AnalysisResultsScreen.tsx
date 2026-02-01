@@ -80,7 +80,7 @@ export function AnalysisResultsScreen({
   onBack,
   onScanAgain,
 }: AnalysisResultsScreenProps) {
-  const { addPoints } = useAuth();
+  const { addPoints, refreshUserData } = useAuth();
   const [selectedAlternative, setSelectedAlternative] = useState<number | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showDeclined, setShowDeclined] = useState(false);
@@ -93,8 +93,9 @@ export function AnalysisResultsScreen({
     const points = calculatePoints(analysis.ecoScore, alt.estimatedEcoScore);
     setEarnedPoints(points);
     
-    // Add points to user's balance
-    await addPoints(points, `Swapped to ${alt.name} by ${alt.brand}`);
+    // Add points to user's balance (reason 'swap' triggers swapsThisMonth increment on backend)
+    await addPoints(points, 'swap');
+    await refreshUserData();
     
     setShowCelebration(true);
   };
