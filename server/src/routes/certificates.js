@@ -36,12 +36,22 @@ router.get('/milestones', authenticateToken, async (req, res) => {
     const mintedMilestones = (user.nftCertificates || []).map(c => c.milestone).filter(Boolean);
 
     // Calculate which milestones are available
-    const milestones = MILESTONES.map(amount => ({
-      amount,
-      unlocked: totalDonated >= amount,
-      minted: mintedMilestones.includes(amount),
-      available: totalDonated >= amount && !mintedMilestones.includes(amount)
-    }));
+    const milestones = MILESTONES.map((amount, index) => {
+      const unlocked = totalDonated >= amount;
+      const minted = mintedMilestones.includes(amount);
+      // Can only mint if all previous milestones are minted
+      const previousMilestones = MILESTONES.slice(0, index);
+      const allPreviousMinted = previousMilestones.every(m => mintedMilestones.includes(m));
+      const canMint = unlocked && !minted && allPreviousMinted;
+
+      return {
+        amount,
+        unlocked,
+        minted,
+        available: unlocked && !minted,
+        canMint
+      };
+    });
 
     res.json({
       success: true,
@@ -77,11 +87,23 @@ router.post('/mint', authenticateToken, async (req, res) => {
     }
 
     // Check if user already minted this milestone
-    const alreadyMinted = (user.nftCertificates || []).some(c => c.milestone === milestone);
-    if (alreadyMinted) {
+    const mintedMilestones = (user.nftCertificates || []).map(c => c.milestone).filter(Boolean);
+    if (mintedMilestones.includes(milestone)) {
       return res.status(400).json({
         success: false,
         error: `You already minted the $${milestone} milestone badge`
+      });
+    }
+
+    // Enforce sequential minting - must mint lower badges first
+    const milestoneIndex = MILESTONES.indexOf(milestone);
+    const requiredPreviousMilestones = MILESTONES.slice(0, milestoneIndex);
+    const missingMilestones = requiredPreviousMilestones.filter(m => !mintedMilestones.includes(m));
+
+    if (missingMilestones.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `You must mint the $${missingMilestones[0]} badge first`
       });
     }
 

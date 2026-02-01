@@ -19,7 +19,7 @@ import {
 import { SolanaIcon } from '@/components/icons/SolanaIcon';
 
 export function ProfileScreen() {
-  const { userData, signOut } = useAuth();
+  const { userData, signOut, refreshUserData } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [showImpactCert, setShowImpactCert] = useState(false);
@@ -28,6 +28,7 @@ export function ProfileScreen() {
   const [donationStats, setDonationStats] = useState<any>(null);
 
   useEffect(() => {
+    refreshUserData();
     loadCertificates();
   }, []);
 
