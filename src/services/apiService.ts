@@ -118,6 +118,12 @@ export async function lookupFriendCode(code: string) {
   return fetchWithAuth(`/friends/code/${encodeURIComponent(code)}`);
 }
 
+export async function devAddTestFriends() {
+  return fetchWithAuth('/friends/dev-add-test-friends', {
+    method: 'POST',
+  });
+}
+
 // ============ Leaderboard API ============
 
 export async function getLeaderboard(timeframe: 'weekly' | 'alltime' = 'alltime', limit = 50) {
