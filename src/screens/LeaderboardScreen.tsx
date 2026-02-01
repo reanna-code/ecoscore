@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   getFriends,
   getFriendsLeaderboard,
-  getLeaderboard,
   sendFriendRequest,
   searchUsers,
   getFriendRequests,
@@ -25,7 +24,6 @@ import {
   Search,
   Check,
   Copy,
-  Users,
   RefreshCw,
   Loader2,
   Bell,
@@ -33,8 +31,7 @@ import {
   UserX,
 } from 'lucide-react';
 
-type TimeFrame = 'weekly' | 'alltime';
-type LeaderboardView = 'friends' | 'global';
+// Only friends leaderboard - no time frame or global options
 
 interface LeaderboardEntry {
   id: string;
@@ -46,6 +43,7 @@ interface LeaderboardEntry {
   ecoScore: number;
   badges: Array<{ badgeId: string; name: string; icon?: string }>;
   streakCount: number;
+  swapsThisMonth: number;
   isCurrentUser?: boolean;
 }
 
@@ -68,8 +66,6 @@ interface SearchResult {
 
 export function LeaderboardScreen() {
   const { userData: user } = useAuth();
-  const [timeFrame, setTimeFrame] = useState<TimeFrame>('weekly');
-  const [view, setView] = useState<LeaderboardView>('friends');
   const [showAddFriends, setShowAddFriends] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,19 +89,15 @@ export function LeaderboardScreen() {
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Fetch leaderboard data
+  // Fetch leaderboard data (friends only)
   const fetchLeaderboard = useCallback(async (showRefresh = false) => {
     try {
       if (showRefresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
 
-      let data;
-      if (view === 'friends') {
-        data = await getFriendsLeaderboard(timeFrame);
-      } else {
-        data = await getLeaderboard(timeFrame);
-      }
+      // Only fetch friends leaderboard
+      const data = await getFriendsLeaderboard('alltime');
 
       // Transform data to match our interface
       const entries: LeaderboardEntry[] = (data.leaderboard || []).map((entry: any, index: number) => ({
@@ -118,6 +110,7 @@ export function LeaderboardScreen() {
         ecoScore: entry.ecoScore || 50,
         badges: entry.badges || [],
         streakCount: entry.streakCount || 0,
+        swapsThisMonth: entry.swapsThisMonth || 0,
         isCurrentUser: entry.isCurrentUser || entry.id === user?.id,
       }));
 
@@ -129,7 +122,7 @@ export function LeaderboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [view, timeFrame, user]);
+  }, [user]);
 
   // Fetch friends list
   const fetchFriends = useCallback(async () => {
@@ -621,64 +614,15 @@ export function LeaderboardScreen() {
           </div>
         </div>
 
-        {/* View toggle: Friends vs Global */}
-        <div className="flex gap-2 px-4 pb-2">
-          <button
-            onClick={() => setView('friends')}
-            className={cn(
-              'flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2',
-              view === 'friends'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Users className="w-4 h-4" />
-            friends
-          </button>
-          <button
-            onClick={() => setView('global')}
-            className={cn(
-              'flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2',
-              view === 'global'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Trophy className="w-4 h-4" />
-            global
-          </button>
-        </div>
-
-        {/* Time frame toggle */}
-        <div className="flex gap-2 p-4 pt-2">
-          <button
-            onClick={() => setTimeFrame('weekly')}
-            className={cn(
-              'flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all',
-              timeFrame === 'weekly'
-                ? 'bg-secondary text-secondary-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-            )}
-          >
-            this week
-          </button>
-          <button
-            onClick={() => setTimeFrame('alltime')}
-            className={cn(
-              'flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all',
-              timeFrame === 'alltime'
-                ? 'bg-secondary text-secondary-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-            )}
-          >
-            all time
-          </button>
+        {/* Refresh button */}
+        <div className="flex justify-end px-4 pb-2">
           <button
             onClick={() => fetchLeaderboard(true)}
             disabled={refreshing}
-            className="p-2 rounded-xl bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
+            className="p-2 rounded-xl bg-muted/50 text-muted-foreground hover:text-foreground transition-all flex items-center gap-2 text-sm"
           >
             <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
+            refresh
           </button>
         </div>
       </header>
@@ -696,8 +640,8 @@ export function LeaderboardScreen() {
               try again
             </Button>
           </div>
-        ) : view === 'friends' && !hasFriends ? (
-          /* Empty state for friends view */
+        ) : !hasFriends ? (
+          /* Empty state - no friends yet */
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Mascot size="lg" mood="waving" />
             <h2 className="mt-6 text-lg font-semibold text-foreground">no friends yet</h2>
@@ -770,8 +714,11 @@ export function LeaderboardScreen() {
                           {entry.username}
                         </span>
 
-                        <span className="text-xs text-muted-foreground mb-2">
+                        <span className="text-xs text-muted-foreground mb-1">
                           {entry.pointsBalance.toLocaleString()} pts
+                        </span>
+                        <span className="text-xs text-primary/70 mb-2">
+                          {entry.swapsThisMonth} swaps
                         </span>
 
                         <div className={cn(
@@ -843,6 +790,7 @@ export function LeaderboardScreen() {
                       <div className="text-right shrink-0">
                         <div className="font-bold text-foreground">{entry.pointsBalance.toLocaleString()}</div>
                         <div className="text-xs text-muted-foreground">pts</div>
+                        <div className="text-xs text-primary/70">{entry.swapsThisMonth} swaps</div>
                       </div>
                     </div>
                   );
@@ -896,6 +844,7 @@ export function LeaderboardScreen() {
                       <div className="text-right shrink-0">
                         <div className="font-bold text-foreground">{entry.pointsBalance.toLocaleString()}</div>
                         <div className="text-xs text-muted-foreground">pts</div>
+                        <div className="text-xs text-primary/70">{entry.swapsThisMonth} swaps</div>
                       </div>
                     </div>
                   );
