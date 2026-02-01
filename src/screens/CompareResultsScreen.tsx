@@ -91,7 +91,7 @@ export function CompareResultsScreen({
   if (showCelebration && choseGreener !== null) {
     const pickedLessEco = !choseGreener;
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 pb-40 relative overflow-hidden">
         {/* Confetti and sun for greener choice */}
         {!pickedLessEco && (
           <>
@@ -311,7 +311,7 @@ export function CompareResultsScreen({
               scan again
             </Button>
             <Button variant="ghost" onClick={handleBackToCompare} className="w-full">
-              back
+              back to alternatives
             </Button>
           </div>
         </div>

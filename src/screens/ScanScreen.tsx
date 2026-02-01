@@ -337,10 +337,7 @@ export function ScanScreen() {
               className="w-full h-14 text-lg"
             >
               {isAnalyzing ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  analyzing with ai...
-                </>
+                'analyzing with ai...'
               ) : (
                 <>
                   <Zap className="w-5 h-5 mr-2" />
