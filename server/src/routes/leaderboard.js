@@ -43,8 +43,6 @@ router.get('/', optionalAuth, async (req, res) => {
  */
 router.get('/friends', authenticateToken, async (req, res) => {
   try {
-    const { timeframe = 'alltime' } = req.query;
-    
     const currentUser = await User.findOne({ firebaseUid: req.user.uid });
     if (!currentUser) {
       return res.status(404).json({ error: 'User not found' });
@@ -53,20 +51,17 @@ router.get('/friends', authenticateToken, async (req, res) => {
     // Get friends + current user for comparison
     const userIds = [...currentUser.friends, currentUser._id];
     
-    let sortField = 'totalPointsEarned';
-    if (timeframe === 'weekly') {
-      sortField = 'pointsBalance';
-    }
-
+    // Always sort by pointsBalance (current balance) in descending order
     const users = await User.find({ _id: { $in: userIds } })
-      .sort({ [sortField]: -1 })
-      .select('username displayName avatarUrl ecoScore pointsBalance badges streakCount');
+      .sort({ pointsBalance: -1 })
+      .select('username displayName avatarUrl ecoScore pointsBalance totalPointsEarned badges streakCount swapsThisMonth');
 
     // Add rank and mark current user
     const leaderboard = users.map((user, index) => ({
       rank: index + 1,
       isCurrentUser: user._id.equals(currentUser._id),
-      ...user.toPublicProfile()
+      ...user.toPublicProfile(),
+      swapsThisMonth: user.swapsThisMonth || 0
     }));
 
     res.json({ leaderboard });

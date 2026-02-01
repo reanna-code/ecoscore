@@ -5,6 +5,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { EcoScoreBadge } from '@/components/EcoScoreBadge';
 import { Mascot, MascotMessage } from '@/components/Mascot';
 import { Product, Alternative, calculatePoints } from '@/types/ecoscore';
+import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Check, Share2, Sparkles } from 'lucide-react';
 
 interface CompareResultsScreenProps {
@@ -18,13 +19,14 @@ export function CompareResultsScreen({
   alternatives,
   onBack,
 }: CompareResultsScreenProps) {
+  const { addPoints, refreshUserData } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState(0);
 
   const [choseGreener, setChoseGreener] = useState<boolean | null>(null);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!selectedId) return;
 
     const isScannedProduct = selectedId === scannedProduct.id;
@@ -33,9 +35,26 @@ export function CompareResultsScreen({
       : alternatives.find((a) => a.id === selectedId);
 
     if (chosen) {
-      setChoseGreener(!isScannedProduct);
+      const choseGreenerOption = !isScannedProduct;
+      setChoseGreener(choseGreenerOption);
+      
+      // Calculate points earned
       const points = calculatePoints(scannedProduct.ecoScore, chosen.ecoScore);
       setEarnedPoints(points);
+      
+      // If user chose a greener alternative, add points and track the swap
+      if (choseGreenerOption && points > 0) {
+        try {
+          // Add points via API (this also updates swapsThisMonth on the backend)
+          await addPoints(points, 'swap');
+          // Refresh user data to get updated stats
+          await refreshUserData();
+          console.log(`Added ${points} points for eco swap!`);
+        } catch (error) {
+          console.error('Failed to add points:', error);
+        }
+      }
+      
       setShowCelebration(true);
     }
   };

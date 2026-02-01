@@ -247,4 +247,58 @@ router.get('/code/:code', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/friends/dev-add-test-friends
+ * DEV ONLY: Add test friends (angie, angie2) to current user
+ */
+router.post('/dev-add-test-friends', authenticateToken, async (req, res) => {
+  // Only allow in development
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'Not allowed in production' });
+  }
+
+  try {
+    const currentUser = await User.findOne({ firebaseUid: req.user.uid });
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Find angie and angie2 users
+    const testFriends = await User.find({
+      username: { $in: ['angie', 'angie2'] }
+    });
+
+    if (testFriends.length === 0) {
+      return res.status(404).json({ error: 'Test users (angie, angie2) not found in database' });
+    }
+
+    // Add them as friends (both directions)
+    for (const friend of testFriends) {
+      // Add friend to current user if not already friends
+      if (!currentUser.friends.includes(friend._id)) {
+        currentUser.friends.push(friend._id);
+      }
+      // Add current user to friend's friends list
+      if (!friend.friends.includes(currentUser._id)) {
+        friend.friends.push(currentUser._id);
+        await friend.save();
+      }
+    }
+
+    await currentUser.save();
+
+    res.json({
+      message: `Added ${testFriends.length} test friends`,
+      friends: testFriends.map(f => ({
+        username: f.username,
+        pointsBalance: f.pointsBalance,
+        swapsThisMonth: f.swapsThisMonth
+      }))
+    });
+  } catch (error) {
+    console.error('Dev add friends error:', error);
+    res.status(500).json({ error: 'Failed to add test friends' });
+  }
+});
+
 export default router;

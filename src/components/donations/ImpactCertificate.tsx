@@ -1,10 +1,17 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Download, X, ExternalLink, Loader2 } from 'lucide-react';
+import { Download, X, ExternalLink, Loader2, Check, Lock } from 'lucide-react';
 import { SolanaIcon } from '@/components/icons/SolanaIcon';
-import { mintCertificateNft } from '@/services/apiService';
+import { mintCertificateNft, getMilestones, getCertificates } from '@/services/apiService';
+
+interface MilestoneInfo {
+  amount: number;
+  unlocked: boolean;
+  minted: boolean;
+  available: boolean;
+  canMint: boolean; // New: true only if previous milestones are minted
+}
 
 interface ImpactCertificateProps {
   userName?: string;
@@ -14,20 +21,19 @@ interface ImpactCertificateProps {
   cluster?: string;
   date?: Date;
   onClose?: () => void;
-  existingNft?: {
-    mintAddress: string;
-    explorerUrl: string;
-    imageUrl?: string;
-  } | null;
 }
 
-interface MintedNft {
-  mintAddress: string;
-  explorerUrl: string;
-  imageUrl: string;
-}
+// Milestone badge names and icons
+const MILESTONE_META: Record<number, { name: string; icon: string; color: string }> = {
+  5: { name: 'Seedling', icon: '🌱', color: 'from-green-400 to-emerald-500' },
+  25: { name: 'Sapling', icon: '🌿', color: 'from-emerald-500 to-teal-500' },
+  50: { name: 'Tree', icon: '🌳', color: 'from-teal-500 to-cyan-500' },
+  100: { name: 'Forest Guardian', icon: '🌲', color: 'from-cyan-500 to-blue-500' }
+};
 
-// Estimate: $1 = 0.1 kg CO2 offset (simplified for demo)
+const MILESTONE_ORDER = [5, 25, 50, 100];
+
+// Estimate: $1 = 0.1 kg CO2 offset
 const CO2_PER_DOLLAR = 0.1;
 
 export function ImpactCertificate({
@@ -37,26 +43,68 @@ export function ImpactCertificate({
   txSignature,
   cluster = 'devnet',
   date = new Date(),
-  onClose,
-  existingNft
+  onClose
 }: ImpactCertificateProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMinting, setIsMinting] = useState(false);
-  const [mintedNft, setMintedNft] = useState<MintedNft | null>(
-    existingNft ? {
-      mintAddress: existingNft.mintAddress,
-      explorerUrl: existingNft.explorerUrl,
-      imageUrl: existingNft.imageUrl || ''
-    } : null
-  );
   const [mintError, setMintError] = useState<string | null>(null);
+  const [milestones, setMilestones] = useState<MilestoneInfo[]>([]);
+  const [selectedMilestone, setSelectedMilestone] = useState<number | null>(null);
+  const [viewingMinted, setViewingMinted] = useState(false); // Viewing a minted badge
+  const [justMinted, setJustMinted] = useState<{ milestone: number; explorerUrl: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [certificates, setCertificates] = useState<any[]>([]);
 
-  const co2Offset = (totalDonated * CO2_PER_DOLLAR).toFixed(1);
-  const explorerUrl = txSignature
-    ? `https://explorer.solana.com/tx/${txSignature}?cluster=${cluster}`
-    : null;
-  const shortTx = txSignature ? `${txSignature.slice(0, 8)}...${txSignature.slice(-8)}` : null;
+  useEffect(() => {
+    loadMilestones();
+  }, []);
+
+  async function loadMilestones() {
+    try {
+      const [milestonesRes, certsRes] = await Promise.all([
+        getMilestones(),
+        getCertificates().catch(() => ({ certificates: [] }))
+      ]);
+
+      const loadedMilestones = milestonesRes.milestones || [];
+      setMilestones(loadedMilestones);
+      setCertificates(certsRes.certificates || []);
+
+      // Auto-select the first mintable milestone, or first minted if none available
+      const firstMintable = loadedMilestones.find((m: MilestoneInfo) => m.canMint);
+      if (firstMintable) {
+        setSelectedMilestone(firstMintable.amount);
+        setViewingMinted(false);
+      } else {
+        // Show the highest minted badge
+        const mintedBadges = loadedMilestones.filter((m: MilestoneInfo) => m.minted);
+        if (mintedBadges.length > 0) {
+          setSelectedMilestone(mintedBadges[mintedBadges.length - 1].amount);
+          setViewingMinted(true);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load milestones:', e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleBadgeClick(m: MilestoneInfo) {
+    if (m.minted) {
+      // Can always view minted badges
+      setSelectedMilestone(m.amount);
+      setViewingMinted(true);
+      setJustMinted(null);
+    } else if (m.canMint) {
+      // Can select to mint
+      setSelectedMilestone(m.amount);
+      setViewingMinted(false);
+      setJustMinted(null);
+    }
+    // Locked badges do nothing
+  }
 
   async function generateImage(): Promise<Blob | null> {
     if (!cardRef.current) return null;
@@ -87,7 +135,7 @@ export function ImpactCertificate({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ecoscore-impact-${Date.now()}.png`;
+    link.download = `ecoscore-badge-${selectedMilestone}-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -95,53 +143,59 @@ export function ImpactCertificate({
   }
 
   async function handleShareX() {
-    const text = `I just helped offset ${co2Offset} kg of CO2 through @EcoscoreApp! ${ngoName ? `Supporting ${ngoName}. ` : ''}Verified on Solana blockchain. #ClimateAction #Sustainability #Web3ForGood`;
-    const url = explorerUrl || 'https://ecoscore.app';
+    if (!selectedMilestone) return;
+    const meta = MILESTONE_META[selectedMilestone];
+    const co2 = (selectedMilestone * CO2_PER_DOLLAR).toFixed(1);
+    const text = `${meta?.icon} I just earned my "${meta?.name}" badge on @EcoscoreApp! Helped offset ${co2} kg of CO2. ${ngoName ? `Supporting ${ngoName}. ` : ''}#ClimateAction #Sustainability #Web3ForGood`;
+    const url = justMinted?.explorerUrl || 'https://ecoscore.app';
 
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
     window.open(twitterUrl, '_blank', 'width=550,height=420');
   }
 
   async function handleShareInstagram() {
-    // Instagram doesn't support direct web sharing
-    // Best approach: download image + copy caption, then prompt user
     const blob = await generateImage();
     if (!blob) return;
 
-    // Download the image
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ecoscore-impact-${Date.now()}.png`;
+    link.download = `ecoscore-badge-${selectedMilestone}-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    // Copy caption to clipboard
-    const caption = `I just helped offset ${co2Offset} kg of CO2 through Ecoscore! ${ngoName ? `Supporting ${ngoName}. ` : ''}Verified on Solana blockchain.\n\n#ClimateAction #Sustainability #Web3ForGood #Ecoscore`;
+    if (!selectedMilestone) return;
+    const meta = MILESTONE_META[selectedMilestone];
+    const co2 = (selectedMilestone * CO2_PER_DOLLAR).toFixed(1);
+    const caption = `${meta?.icon} Just earned my "${meta?.name}" badge on Ecoscore! Helped offset ${co2} kg of CO2.\n\n#ClimateAction #Sustainability #Web3ForGood #Ecoscore`;
 
     try {
       await navigator.clipboard.writeText(caption);
       alert('Image downloaded! Caption copied to clipboard. Open Instagram and paste the caption with your image.');
     } catch {
-      alert('Image downloaded! Open Instagram and share your impact certificate.');
+      alert('Image downloaded! Open Instagram and share your impact badge.');
     }
   }
 
   async function handleMintNft() {
+    if (!selectedMilestone) return;
+
     setIsMinting(true);
     setMintError(null);
 
     try {
-      const result = await mintCertificateNft(totalDonated, ngoName, txSignature);
+      const result = await mintCertificateNft(selectedMilestone, ngoName, txSignature);
 
       if (result.success) {
-        setMintedNft({
-          mintAddress: result.certificate.mintAddress,
-          explorerUrl: result.certificate.explorerUrl,
-          imageUrl: result.certificate.imageUrl
+        setJustMinted({
+          milestone: selectedMilestone,
+          explorerUrl: result.certificate.explorerUrl
         });
+        setViewingMinted(true);
+        // Refresh milestones to update UI
+        await loadMilestones();
       } else {
         setMintError(result.error || 'Failed to mint NFT');
       }
@@ -152,8 +206,29 @@ export function ImpactCertificate({
     }
   }
 
+  const selectedMeta = selectedMilestone ? MILESTONE_META[selectedMilestone] : null;
+  const selectedMilestoneData = milestones.find(m => m.amount === selectedMilestone);
+  const canMintSelected = selectedMilestoneData?.canMint && !viewingMinted;
+
+  // Get explorer URL for a minted badge
+  const getExplorerUrl = (milestone: number) => {
+    const cert = certificates.find(c => c.milestone === milestone);
+    return cert?.explorerUrl || null;
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="text-white flex items-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 px-4 py-2 overflow-y-auto">
       <div className="max-w-sm w-full">
         {/* Close button */}
         {onClose && (
@@ -167,67 +242,139 @@ export function ImpactCertificate({
           </div>
         )}
 
-        {/* Certificate Card */}
-        <div
-          ref={cardRef}
-          className="bg-gradient-to-br from-green-600 via-emerald-500 to-teal-600 rounded-xl p-0.5"
-        >
-          <div className="bg-white rounded-xl p-4 text-center">
-            {/* Header */}
-            <div className="mb-2">
-              <div className="text-2xl mb-1">🌍</div>
-              <h2 className="text-base font-bold text-gray-800">ECOSCORE IMPACT</h2>
-              <div className="h-0.5 w-12 bg-gradient-to-r from-green-500 to-teal-500 mx-auto mt-1 rounded-full" />
-            </div>
+        {/* Milestone Badges Grid */}
+        <div className="mb-4">
+          <h3 className="text-white text-sm font-semibold mb-2 text-center">
+            Your Impact Badges
+          </h3>
+          <div className="grid grid-cols-4 gap-2">
+            {milestones.map((m) => {
+              const meta = MILESTONE_META[m.amount];
+              const isSelected = selectedMilestone === m.amount;
+              const isClickable = m.minted || m.canMint;
 
-            {/* Impact Stats */}
-            <div className="my-3">
-              <p className="text-gray-600 text-xs">{userName} helped offset</p>
-              <p className="text-3xl font-bold text-green-600">{co2Offset} kg</p>
-              <p className="text-gray-600 text-sm">of CO2 emissions</p>
-            </div>
-
-            {/* Donation Details */}
-            <div className="bg-gray-50 rounded-lg p-2 mb-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500 text-xs">Amount Donated</span>
-                <span className="font-bold text-green-600">${totalDonated.toFixed(2)}</span>
-              </div>
-              {ngoName && (
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-gray-500 text-xs">Supporting</span>
-                  <span className="font-medium text-gray-800 text-xs">{ngoName}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Verification */}
-            <div className="border-t pt-2">
-              <p className="text-purple-600 text-xs">Verified on Solana</p>
-              {shortTx && (
-                <p className="text-xs text-gray-400 font-mono">{shortTx}</p>
-              )}
-              <p className="text-xs text-gray-400 mt-1">
-                {date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </p>
-            </div>
-
-            {/* Branding */}
-            <div className="mt-2 pt-2 border-t">
-              <p className="text-xs text-gray-400">ecoscore.app</p>
-            </div>
+              return (
+                <button
+                  key={m.amount}
+                  onClick={() => handleBadgeClick(m)}
+                  disabled={!isClickable}
+                  className={`
+                    relative p-2 rounded-xl text-center transition-all
+                    ${m.minted
+                      ? isSelected
+                        ? 'bg-gradient-to-br ' + meta.color + ' text-white shadow-lg ring-2 ring-white'
+                        : 'bg-gradient-to-br ' + meta.color + ' text-white shadow-lg cursor-pointer hover:scale-105'
+                      : m.canMint
+                        ? isSelected
+                          ? 'bg-white ring-2 ring-green-500 shadow-lg'
+                          : 'bg-white/90 hover:bg-white cursor-pointer'
+                        : 'bg-gray-600/80 cursor-not-allowed'
+                    }
+                  `}
+                >
+                  <div className={`text-2xl ${!m.unlocked ? 'grayscale opacity-60' : ''}`}>
+                    {meta.icon}
+                  </div>
+                  <div className={`text-xs font-bold ${m.minted ? 'text-white' : m.unlocked ? 'text-gray-800' : 'text-gray-300'}`}>
+                    ${m.amount}
+                  </div>
+                  <div className={`text-[10px] ${m.minted ? 'text-white/80' : m.unlocked ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {meta.name}
+                  </div>
+                  {/* Status indicator */}
+                  {m.minted && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                  {!m.unlocked && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-500 rounded-full flex items-center justify-center">
+                      <Lock className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                  {m.unlocked && !m.minted && !m.canMint && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center text-[8px]">
+                      ⏳
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
+          {/* Helper text */}
+          {milestones.some(m => m.unlocked && !m.minted && !m.canMint) && (
+            <p className="text-yellow-400 text-xs text-center mt-2">
+              Mint badges in order: {MILESTONE_ORDER.map(a => `$${a}`).join(' → ')}
+            </p>
+          )}
         </div>
 
-        {/* Mint NFT Section */}
-        {mintedNft ? (
-          <div className="mt-3 p-2 bg-green-50 rounded-lg border border-green-200">
+        {/* Selected Badge Preview */}
+        {selectedMilestone && selectedMeta && (
+          <div
+            ref={cardRef}
+            className={`bg-gradient-to-br ${selectedMeta.color} rounded-xl p-0.5`}
+          >
+            <div className="bg-white rounded-xl p-4 text-center">
+              {/* Badge Icon */}
+              <div className="text-5xl mb-2">{selectedMeta.icon}</div>
+
+              {/* Badge Name */}
+              <h2 className="text-lg font-bold text-gray-800">{selectedMeta.name} Badge</h2>
+              <div className="h-0.5 w-12 bg-gradient-to-r from-green-500 to-teal-500 mx-auto mt-1 rounded-full" />
+
+              {/* Stats */}
+              <div className="my-3">
+                <p className="text-gray-600 text-xs">{userName} reached</p>
+                <p className="text-3xl font-bold text-green-600">${selectedMilestone}</p>
+                <p className="text-gray-600 text-sm">donation milestone</p>
+              </div>
+
+              {/* CO2 Impact */}
+              <div className="bg-gray-50 rounded-lg p-2 mb-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 text-xs">CO2 Offset</span>
+                  <span className="font-bold text-green-600">
+                    {(selectedMilestone * CO2_PER_DOLLAR).toFixed(1)} kg
+                  </span>
+                </div>
+                {ngoName && (
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-gray-500 text-xs">Supporting</span>
+                    <span className="font-medium text-gray-800 text-xs">{ngoName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Verification */}
+              <div className="border-t pt-2">
+                <p className="text-purple-600 text-xs flex items-center justify-center gap-1">
+                  <SolanaIcon className="w-3 h-3" /> Verified on Solana
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+
+              {/* Branding */}
+              <div className="mt-2 pt-2 border-t">
+                <p className="text-xs text-gray-400">ecoscore.app</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Just Minted Success */}
+        {justMinted && (
+          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center gap-2 text-green-700 text-sm">
-              <SolanaIcon className="w-4 h-4" />
-              <span className="font-semibold">NFT Minted!</span>
+              <Check className="w-4 h-4" />
+              <span className="font-semibold">
+                {MILESTONE_META[justMinted.milestone]?.name} Badge Minted!
+              </span>
             </div>
             <a
-              href={mintedNft.explorerUrl}
+              href={justMinted.explorerUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-purple-600 hover:text-purple-800 text-xs mt-1"
@@ -236,7 +383,26 @@ export function ImpactCertificate({
               View on Solana Explorer
             </a>
           </div>
-        ) : (
+        )}
+
+        {/* View Minted Badge on Explorer */}
+        {viewingMinted && !justMinted && selectedMilestone && getExplorerUrl(selectedMilestone) && (
+          <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+            <a
+              href={getExplorerUrl(selectedMilestone)!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 text-purple-600 hover:text-purple-800 text-sm"
+            >
+              <SolanaIcon className="w-4 h-4" />
+              View on Solana Explorer
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
+
+        {/* Mint Button - only show if can mint */}
+        {canMintSelected && !justMinted && selectedMilestone && (
           <div className="mt-3">
             <Button
               onClick={handleMintNft}
@@ -247,12 +413,12 @@ export function ImpactCertificate({
               {isMinting ? (
                 <>
                   <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                  Minting...
+                  Minting {selectedMeta?.name}...
                 </>
               ) : (
                 <>
                   <SolanaIcon className="w-3 h-3 mr-1" />
-                  Mint as NFT
+                  Mint {selectedMeta?.name} Badge (${selectedMilestone})
                 </>
               )}
             </Button>
@@ -266,7 +432,7 @@ export function ImpactCertificate({
         <div className="mt-3 grid grid-cols-3 gap-1.5">
           <Button
             onClick={handleDownload}
-            disabled={isGenerating}
+            disabled={isGenerating || !selectedMilestone}
             variant="outline"
             size="sm"
             className="bg-white hover:bg-gray-100 text-xs"
@@ -277,7 +443,7 @@ export function ImpactCertificate({
 
           <Button
             onClick={handleShareX}
-            disabled={isGenerating}
+            disabled={isGenerating || !selectedMilestone}
             size="sm"
             className="bg-black hover:bg-gray-800 text-white text-xs"
           >
@@ -289,7 +455,7 @@ export function ImpactCertificate({
 
           <Button
             onClick={handleShareInstagram}
-            disabled={isGenerating}
+            disabled={isGenerating || !selectedMilestone}
             size="sm"
             className="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600 text-white text-xs"
           >

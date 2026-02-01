@@ -19,7 +19,7 @@ import {
 import { SolanaIcon } from '@/components/icons/SolanaIcon';
 
 export function ProfileScreen() {
-  const { userData, signOut } = useAuth();
+  const { userData, signOut, refreshUserData } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [showImpactCert, setShowImpactCert] = useState(false);
@@ -28,6 +28,7 @@ export function ProfileScreen() {
   const [donationStats, setDonationStats] = useState<any>(null);
 
   useEffect(() => {
+    refreshUserData();
     loadCertificates();
   }, []);
 
@@ -237,29 +238,38 @@ export function ProfileScreen() {
 
           {(user.badges && user.badges.length > 0) || certificates.length > 0 ? (
             <div className="space-y-3">
-              {/* NFT Certificates */}
-              {certificates.map((cert: any, i: number) => (
-                <a
-                  key={`nft-${i}`}
-                  href={cert.explorerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-xl bg-card hover:bg-muted transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                      <SolanaIcon className="w-5 h-5 text-white" />
+              {/* NFT Milestone Badges */}
+              {certificates.map((cert: any, i: number) => {
+                const badgeMeta: Record<number, { name: string; icon: string; color: string }> = {
+                  5: { name: 'Seedling', icon: '🌱', color: 'from-green-400 to-emerald-500' },
+                  25: { name: 'Sapling', icon: '🌿', color: 'from-emerald-500 to-teal-500' },
+                  50: { name: 'Tree', icon: '🌳', color: 'from-teal-500 to-cyan-500' },
+                  100: { name: 'Forest Guardian', icon: '🌲', color: 'from-cyan-500 to-blue-500' }
+                };
+                const meta = badgeMeta[cert.milestone] || { name: 'Impact', icon: '🌍', color: 'from-purple-500 to-indigo-600' };
+                return (
+                  <a
+                    key={`nft-${i}`}
+                    href={cert.explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-xl bg-card hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${meta.color} flex items-center justify-center text-xl`}>
+                        {meta.icon}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{meta.name} Badge</p>
+                        <p className="text-xs text-muted-foreground">
+                          ${cert.milestone} milestone · {new Date(cert.mintedAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">${cert.donationAmount?.toFixed(2)} Impact NFT</p>
-                      <p className="text-xs text-muted-foreground">
-                        {cert.ngoName || 'Climate Action'} · {new Date(cert.mintedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                </a>
-              ))}
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  </a>
+                );
+              })}
 
               {/* Traditional Badges */}
               {user.badges && user.badges.length > 0 && (
@@ -328,11 +338,6 @@ export function ProfileScreen() {
             // Refresh certificates to get newly minted one
             loadCertificates();
           }}
-          existingNft={certificates.length > 0 ? {
-            mintAddress: certificates[0].mintAddress,
-            explorerUrl: certificates[0].explorerUrl,
-            imageUrl: certificates[0].imageUrl
-          } : null}
         />
       )}
     </div>
