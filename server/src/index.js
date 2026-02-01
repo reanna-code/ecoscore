@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import mongoose from 'mongoose';
 import { initializeFirebase } from './config/firebase.js';
 import userRoutes from './routes/users.js';
@@ -13,6 +17,7 @@ import pledgeRoutes from './routes/pledges.js';
 import donationRoutes from './routes/donations.js';
 import pointsRoutes from './routes/points.js';
 import adminRoutes from './routes/admin.js';
+import certificateRoutes from './routes/certificates.js';
 
 // Load environment variables
 dotenv.config();
@@ -67,6 +72,9 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
+// Serve static files (NFT images)
+app.use('/public', express.static(path.join(__dirname, '../public')));
+
 // Initialize Firebase Admin
 initializeFirebase();
 
@@ -95,6 +103,7 @@ app.use('/api/pledges', pledgeRoutes);
 app.use('/api/donations', donationRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/certificates', certificateRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

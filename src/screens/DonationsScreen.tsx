@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { NgoCard } from '@/components/donations/NgoCard';
 import { PledgeForm } from '@/components/donations/PledgeForm';
 import { DonationHistory } from '@/components/donations/DonationHistory';
-import { getNgos, getPledges, createPledge, getPointsBalance, getDonationStats, devGrantPoints, getWeeklyPledgesByNgo, devProcessBatch, devFillVault, getBatchReceipts } from '@/services/apiService';
-import { ExternalLink } from 'lucide-react';
+import { ImpactCertificate } from '@/components/donations/ImpactCertificate';
+import { getNgos, getPledges, createPledge, getPointsBalance, getDonationStats, devGrantPoints, getWeeklyPledgesByNgo, devProcessBatch, devFillVault, getBatchReceipts, getSponsors } from '@/services/apiService';
+import { ExternalLink, ChevronDown, ChevronUp, Building2 } from 'lucide-react';
 
 interface Ngo {
   _id: string;
@@ -31,6 +32,10 @@ export function DonationsScreen() {
   const [batchReceipts, setBatchReceipts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPledgeForm, setShowPledgeForm] = useState(false);
+  const [showImpactCert, setShowImpactCert] = useState(false);
+  const [selectedPledgeForCert, setSelectedPledgeForCert] = useState<any>(null);
+  const [sponsors, setSponsors] = useState<any[]>([]);
+  const [showSponsors, setShowSponsors] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -39,13 +44,14 @@ export function DonationsScreen() {
   async function loadData() {
     setLoading(true);
     try {
-      const [ngosRes, pledgesRes, balanceRes, statsRes, weeklyRes, batchRes] = await Promise.all([
+      const [ngosRes, pledgesRes, balanceRes, statsRes, weeklyRes, batchRes, sponsorsRes] = await Promise.all([
         getNgos(),
         getPledges().catch(() => ({ pledges: [] })),
         getPointsBalance().catch(() => ({ balance: 0 })),
         getDonationStats().catch(() => ({ stats: {}, byNgo: [] })),
         getWeeklyPledgesByNgo().catch(() => ({ byNgo: [], totalPoints: 0 })),
-        getBatchReceipts(10).catch(() => ({ donations: [] }))
+        getBatchReceipts(10).catch(() => ({ donations: [] })),
+        getSponsors().catch(() => ({ sponsors: [] }))
       ]);
 
       setNgos(ngosRes.ngos || []);
@@ -55,6 +61,7 @@ export function DonationsScreen() {
       setAllTimeByNgo(statsRes.byNgo || []);
       setWeeklyPledges(weeklyRes);
       setBatchReceipts(batchRes.donations || []);
+      setSponsors(sponsorsRes.sponsors || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -97,7 +104,7 @@ export function DonationsScreen() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="container mx-auto px-4 py-6 pb-32 max-w-4xl">
       {/* Dev Controls */}
       {import.meta.env.DEV && (
         <div className="mb-4 flex gap-2">
@@ -165,6 +172,20 @@ export function DonationsScreen() {
         </CardContent>
       </Card>
 
+      {/* Impact Certificate Modal */}
+      {showImpactCert && selectedPledgeForCert && (
+        <ImpactCertificate
+          totalDonated={selectedPledgeForCert.totalDonated}
+          ngoName={selectedPledgeForCert.ngoName}
+          txSignature={selectedPledgeForCert.txSignature}
+          cluster="devnet"
+          onClose={() => {
+            setShowImpactCert(false);
+            setSelectedPledgeForCert(null);
+          }}
+        />
+      )}
+
       {/* Pledge Form Modal */}
       {showPledgeForm && selectedNgo && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -196,9 +217,82 @@ export function DonationsScreen() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-600 mb-4">
-                Your points are converted to real donations, sent directly to these climate organizations
-                via the Solana blockchain. Every transaction is publicly verifiable.
+                Our partner brands fund the donation vault when you choose their sustainable products.
+                Your points direct where these funds go - straight to verified climate organizations via Solana blockchain.
               </p>
+
+              {/* Sponsors Dropdown */}
+              <button
+                onClick={() => setShowSponsors(!showSponsors)}
+                className="flex items-center gap-2 text-sm text-purple-600 font-medium hover:text-purple-700 transition-colors"
+              >
+                <Building2 className="w-4 h-4" />
+                View Partner Brands Funding the Vault
+                {showSponsors ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {showSponsors && (
+                <div className="mt-4 space-y-3">
+                  {sponsors.length > 0 ? (
+                    sponsors.map((sponsor: any) => (
+                      <div
+                        key={sponsor._id}
+                        className="flex items-center justify-between p-3 bg-purple-50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden border">
+                            {sponsor.logoUrl ? (
+                              <img src={sponsor.logoUrl} alt={sponsor.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Building2 className="w-5 h-5 text-gray-400" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{sponsor.name}</p>
+                            <div className="flex items-center gap-2">
+                              {sponsor.websiteUrl && (
+                                <a
+                                  href={sponsor.websiteUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-purple-600 hover:underline"
+                                >
+                                  Website
+                                </a>
+                              )}
+                              {sponsor.walletAddress && (
+                                <a
+                                  href={`https://explorer.solana.com/address/${sponsor.walletAddress}?cluster=devnet`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-green-600 hover:underline flex items-center gap-1"
+                                >
+                                  Wallet <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <a
+                            href={sponsor.walletAddress ? `https://explorer.solana.com/address/${sponsor.walletAddress}?cluster=devnet` : '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold text-purple-600 hover:underline"
+                          >
+                            ${(sponsor.totalDepositedUsd || 0).toLocaleString()}
+                          </a>
+                          <p className="text-xs text-gray-500">contributed</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No partner brands yet
+                    </p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -304,7 +398,19 @@ export function DonationsScreen() {
         </TabsContent>
 
         <TabsContent value="history">
-          <DonationHistory pledges={pledges} />
+          <DonationHistory
+            pledges={pledges}
+            onPledgeClick={(pledge) => {
+              if (pledge.status === 'completed') {
+                setSelectedPledgeForCert({
+                  totalDonated: pledge.estimatedUsd || 0,
+                  ngoName: pledge.ngo?.name,
+                  txSignature: pledge.txSignature,
+                });
+                setShowImpactCert(true);
+              }
+            }}
+          />
 
           {/* Global Batch History */}
           {batchReceipts.length > 0 && (

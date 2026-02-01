@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { onAuthChange, logOut, isFirebaseConfigured } from '@/config/firebase';
-import { getCurrentUser, registerUser } from '@/services/apiService';
+import { getCurrentUser, registerUser, addPoints as addPointsAPI } from '@/services/apiService';
 
 // User data from our MongoDB
 export interface UserData {
@@ -49,6 +49,7 @@ interface AuthContextType {
   registerNewUser: (username: string, displayName?: string) => Promise<void>;
   refreshUserData: () => Promise<void>;
   signOut: () => Promise<void>;
+  addPoints: (points: number, reason: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,41 +64,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Listen for Firebase auth state changes
   useEffect(() => {
     // Auto-logout on every refresh for testing
-    const autoLogout = async () => {
+    const initAuth = async () => {
       try {
         await logOut();
       } catch (error) {
         console.log('Auto-logout failed:', error);
       }
-    };
-    
-    autoLogout();
 
-    const unsubscribe = onAuthChange(async (user) => {
-      setFirebaseUser(user);
-      
-      if (user) {
-        // User is signed in, try to get their data from our API
-        try {
-          const response = await getCurrentUser();
-          setUserData(response.user);
-          setNeedsRegistration(false);
-        } catch (error) {
-          // User exists in Firebase but not in our DB - needs registration
-          console.log('User needs to complete registration');
-          setNeedsRegistration(true);
+      const unsubscribe = onAuthChange(async (user) => {
+        setFirebaseUser(user);
+        
+        if (user) {
+          // User is signed in, try to get their data from our API
+          try {
+            const response = await getCurrentUser();
+            setUserData(response.user);
+            setNeedsRegistration(false);
+          } catch (error) {
+            // User exists in Firebase but not in our DB - needs registration
+            console.log('User needs to complete registration');
+            setNeedsRegistration(true);
+            setUserData(null);
+          }
+        } else {
+          // User is signed out
           setUserData(null);
+          setNeedsRegistration(false);
         }
-      } else {
-        // User is signed out
-        setUserData(null);
-        setNeedsRegistration(false);
-      }
-      
-      setIsLoading(false);
-    });
+        
+        setIsLoading(false);
+      });
 
-    return () => unsubscribe();
+      return unsubscribe;
+    };
+
+    const unsubscribePromise = initAuth();
+    
+    return () => {
+      unsubscribePromise.then(unsubscribe => unsubscribe());
+    };
   }, []);
 
   // Register a new user in our MongoDB
@@ -147,6 +152,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNeedsRegistration(false);
   };
 
+  // Add points to user's balance
+  const addPoints = async (points: number, reason: string) => {
+    if (!firebaseUser || !userData) {
+      console.log('Cannot add points: User not authenticated');
+      // Still update local state for guest users
+      setUserData(prev => prev ? {
+        ...prev,
+        pointsBalance: prev.pointsBalance + points,
+        totalPointsEarned: prev.totalPointsEarned + points,
+        swapsThisMonth: prev.swapsThisMonth + 1,
+      } : null);
+      return;
+    }
+
+    try {
+      // Call API to add points
+      await addPointsAPI(points, reason);
+      
+      // Update local state immediately for better UX
+      setUserData(prev => prev ? {
+        ...prev,
+        pointsBalance: prev.pointsBalance + points,
+        totalPointsEarned: prev.totalPointsEarned + points,
+        swapsThisMonth: prev.swapsThisMonth + 1,
+      } : null);
+
+      // Refresh from server to get accurate data
+      await refreshUserData();
+    } catch (error) {
+      console.error('Failed to add points via API:', error);
+      // Still update locally even if API fails
+      setUserData(prev => prev ? {
+        ...prev,
+        pointsBalance: prev.pointsBalance + points,
+        totalPointsEarned: prev.totalPointsEarned + points,
+        swapsThisMonth: prev.swapsThisMonth + 1,
+      } : null);
+    }
+  };
+
   const value: AuthContextType = {
     firebaseUser,
     userData,
@@ -158,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerNewUser,
     refreshUserData,
     signOut,
+    addPoints,
   };
 
   return (

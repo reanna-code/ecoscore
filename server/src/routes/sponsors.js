@@ -1,6 +1,8 @@
 import express from 'express';
+import { PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import Sponsor from '../models/Sponsor.js';
 import Product from '../models/Product.js';
+import { getSolanaClient } from '../services/solanaClient.js';
 
 const router = express.Router();
 
@@ -50,6 +52,82 @@ router.get('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching sponsor:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch sponsor' });
+  }
+});
+
+/**
+ * POST /api/sponsors/dev-fund
+ * DEV ONLY: Fund all sponsor wallets with small SOL amounts
+ * This makes them visible on Explorer
+ */
+router.post('/dev-fund', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ success: false, error: 'Not available in production' });
+  }
+
+  try {
+    const client = await getSolanaClient();
+    const sponsors = await Sponsor.find({ isVerified: true });
+
+    if (sponsors.length === 0) {
+      return res.json({ success: true, message: 'No sponsors to fund', funded: [] });
+    }
+
+    const fundAmount = 0.001 * LAMPORTS_PER_SOL; // 0.001 SOL each
+    const results = [];
+
+    for (const sponsor of sponsors) {
+      try {
+        const destPubkey = new PublicKey(sponsor.walletAddress);
+
+        // Create transfer instruction
+        const transferIx = SystemProgram.transfer({
+          fromPubkey: client.wallet.publicKey,
+          toPubkey: destPubkey,
+          lamports: fundAmount
+        });
+
+        // Create and send transaction
+        const tx = new Transaction().add(transferIx);
+        tx.recentBlockhash = (await client.connection.getLatestBlockhash()).blockhash;
+        tx.feePayer = client.wallet.publicKey;
+        tx.sign(client.wallet);
+
+        const signature = await client.connection.sendRawTransaction(tx.serialize());
+        await client.connection.confirmTransaction(signature, 'confirmed');
+
+        results.push({
+          name: sponsor.name,
+          wallet: sponsor.walletAddress,
+          signature,
+          explorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=devnet`,
+          success: true
+        });
+
+        console.log(`✅ Funded ${sponsor.name}: ${signature}`);
+
+        // Small delay to avoid rate limiting
+        await new Promise(r => setTimeout(r, 500));
+      } catch (error) {
+        results.push({
+          name: sponsor.name,
+          wallet: sponsor.walletAddress,
+          error: error.message,
+          success: false
+        });
+        console.error(`❌ Failed to fund ${sponsor.name}:`, error.message);
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    res.json({
+      success: true,
+      message: `Funded ${successCount}/${sponsors.length} sponsor wallets`,
+      funded: results
+    });
+  } catch (error) {
+    console.error('Dev fund error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -24,13 +24,16 @@ Ecoscore is a sustainability-focused web application with two entry points:
 
 | Component | Status |
 |-----------|--------|
-| Frontend | Next.js UI implemented |
-| Solana Program | `ecoscore_donations` initialized (Anchor) |
-| Local Dev | Solana CLI + devnet wallet configured |
+| Frontend | Vite + React UI implemented |
+| Backend | Express + MongoDB API |
+| Solana Program | `ecoscore_donation` deployed on devnet |
+| Donation Flow | Pledges → Weekly batch → On-chain disbursement ✅ |
+| Impact Certificates | NFT minting via Metaplex ✅ |
+| Sponsor Wallets | Real Solana wallets with on-chain activity ✅ |
 
 ---
 
-## Phase 1: Donation Escrow (Current Focus)
+## Phase 1: Donation Escrow ✅ COMPLETE
 
 ### Purpose
 Solana provides an immutable, public ledger for:
@@ -57,11 +60,57 @@ Solana provides an immutable, public ledger for:
 ```
 DepositEvent { sponsor, amount, timestamp }
 DisburseEvent { ngo, amount, timestamp, memo }
+BatchDisburseEvent { week_id, total_points, allocations[], timestamp }
 ```
 
 ---
 
-## Phase 2: Eco-Token Economy (Extension)
+## Phase 1.5: Impact Certificate NFTs ✅ COMPLETE
+
+### Purpose
+Provide users with **permanent, verifiable proof** of their climate impact via NFTs on Solana.
+
+### Features
+- **Custodial Wallets** — Auto-generate Solana wallet for users (stored in MongoDB)
+- **NFT Minting** — Mint impact certificates via Metaplex to user's wallet
+- **IPFS Storage** — Certificate images stored permanently on IPFS via Pinata
+- **Social Sharing** — Share certificates on X (Twitter) and Instagram
+- **Explorer Links** — View NFTs directly on Solana Explorer
+
+### User Flow
+```
+User completes donation → Reaches milestone (e.g., $5)
+        ↓
+Click "Mint NFT" → Generate eco-themed certificate image
+        ↓
+Upload image to Pinata IPFS → Create metadata JSON
+        ↓
+Mint NFT via Metaplex (admin pays fees)
+        ↓
+User views NFT on Solana Explorer
+        ↓
+Share to social media (X/Instagram)
+```
+
+### Technical Stack
+| Component | Technology |
+|-----------|------------|
+| NFT Standard | Metaplex Token Metadata |
+| Image Storage | Pinata IPFS |
+| Image Generation | Node Canvas (eco-themed landscape art) |
+| Wallet Management | Custodial (keypairs in MongoDB) |
+
+### Key Files
+| Path | Purpose |
+|------|---------|
+| `server/src/services/nftService.js` | Metaplex minting logic |
+| `server/src/services/ipfsService.js` | IPFS upload service |
+| `server/src/routes/certificates.js` | NFT minting API endpoints |
+| `src/components/donations/ImpactCertificate.tsx` | Certificate UI component |
+
+---
+
+## Phase 2: Eco-Token Economy (Future Extension)
 
 Transform the escrow into a **coordination layer** for climate actions via a programmable SPL token.
 

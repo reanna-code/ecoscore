@@ -1,4 +1,4 @@
-# Ecoscore
+# ecoscore
 
 **Make every purchase count for the planet.**
 
@@ -8,11 +8,11 @@ Ecoscore is a sustainability companion that helps shoppers make eco-conscious de
 
 ## The Problem
 
-Consumers want to shop sustainably, but lack the tools to make informed decisions at the point of purchase. Greenwashing is everywhere, sustainability data is fragmented, and there's no reward for making the right choice.
+Consumers want to shop sustainably, but lack the tools to make informed decisions at the point of purchase. Greenwashing is everywhere, sustainability data is fragmented, and many consumers may not feel the reward is significant or tangible enough to commit to a pricier purchase. 
 
 ## Our Solution
 
-Ecoscore bridges the gap between intention and action:
+ecoscore bridges the gap between intention and action, and places corporate accountability and measurable impact under a spotlight to empower users in choosing the more sustainable given options:
 
 1. **Capture or Search** — Paste a product URL or take photos in-store
 2. **See the Impact** — Get an instant eco-score based on materials, sourcing, and carbon footprint
@@ -52,12 +52,12 @@ Users can optionally claim a **soulbound (non-transferable) certificate** provin
 
 ## Why Solana?
 
-| Feature | Benefit |
-|---------|---------|
-| **Low fees** (~$0.00025/tx) | Micro-rewards are viable; 100% of donations reach NGOs |
-| **Fast finality** (400ms) | NGOs receive funds instantly, not days later |
-| **PDA escrow** | Funds held by code, not a company—no private key exists |
-| **On-chain receipts** | Every donation is publicly auditable forever |
+| Feature                     | Benefit                                                 |
+|-----------------------------|---------------------------------------------------------|
+| **Low fees** (~$0.00025/tx) | Micro-rewards are viable; 100% of donations reach NGOs  |
+| **Fast finality** (400ms)   | NGOs receive funds instantly, not days later            |
+| **PDA escrow**              | Funds held by code, not a company—no private key exists |
+| **On-chain receipts**       | Every donation is publicly auditable forever            |
 
 ---
 
@@ -83,14 +83,19 @@ Users can optionally claim a **soulbound (non-transferable) certificate** provin
 ## Tech Stack
 
 **Frontend**
-- React + TypeScript
+- React + TypeScript + Vite
 - Tailwind CSS + shadcn/ui
-- Vite
+- Gemini AI (product photo analysis)
+
+**Backend**
+- Express.js + MongoDB
+- Node Canvas (NFT image generation)
+- Pinata IPFS (permanent storage)
 
 **Blockchain**
 - Solana (devnet)
 - Anchor Framework
-- SPL Token
+- Metaplex (NFT minting)
 
 ---
 
@@ -98,10 +103,10 @@ Users can optionally claim a **soulbound (non-transferable) certificate** provin
 
 Ecoscore creates a sustainable ecosystem where everyone wins:
 
-- **Partner brands** pay for placement in recommendations → funds the donation pool
+- **Partner/Sponsor Brands** pay for placement in recommendations → funds the donation pool
 - **Users** earn points for sustainable choices → points convert to NGO donations
 - **NGOs** receive verifiable, on-chain donations → full transparency
-- **The planet** benefits from shifted consumer behavior at scale
+- **The Planet** benefits from shifted consumer behavior at scale
 
 ---
 
@@ -112,14 +117,28 @@ Ecoscore creates a sustainable ecosystem where everyone wins:
 git clone https://github.com/your-org/ecoscore.git
 cd ecoscore
 
-# Install dependencies
+# Install frontend dependencies
 npm install
 
-# Start development server
+# Start frontend dev server
 npm run dev
 ```
 
+### Backend Server
 
+```bash
+cd server
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your MongoDB URI, JWT secret, Pinata keys, etc.
+
+# Start backend server
+npm run dev
+```
 
 ### Solana Program
 

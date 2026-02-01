@@ -155,7 +155,7 @@ export function CompareResultsScreen({
   if (showCelebration && choseGreener !== null) {
     const pickedLessEco = !choseGreener;
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 pb-40 relative overflow-hidden">
         {/* Confetti and sun for greener choice */}
         {!pickedLessEco && (
           <>
@@ -375,7 +375,7 @@ export function CompareResultsScreen({
               scan again
             </Button>
             <Button variant="ghost" onClick={handleBackToCompare} className="w-full">
-              back
+              back to alternatives
             </Button>
           </div>
         </div>
@@ -384,7 +384,7 @@ export function CompareResultsScreen({
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-24">
+    <div className="min-h-screen bg-background flex flex-col pb-32">
       {/* header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="flex items-center gap-3 p-4">

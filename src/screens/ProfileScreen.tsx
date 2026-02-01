@@ -1,36 +1,75 @@
-import { useState } from 'react';
-import { EcoScoreBar } from '@/components/EcoScoreBadge';
+import { useState, useEffect } from 'react';
 import { BadgeDisplay } from '@/components/BadgeDisplay';
 import { Button } from '@/components/Button';
 import { Mascot } from '@/components/Mascot';
 import { useAuth } from '@/contexts/AuthContext';
+import { ImpactCertificate } from '@/components/donations/ImpactCertificate';
+import { getCertificates, getDonationStats, getPledges, devClearCertificates } from '@/services/apiService';
 import {
   Settings,
-  Flame,
-  Gift,
+  Users,
   ChevronRight,
-  TrendingUp,
   Check,
   ArrowLeft,
   LogOut,
-  Copy
+  Copy,
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
+import { SolanaIcon } from '@/components/icons/SolanaIcon';
 
 export function ProfileScreen() {
   const { userData, signOut } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showImpactCert, setShowImpactCert] = useState(false);
+  const [certificates, setCertificates] = useState<any[]>([]);
+  const [totalDonated, setTotalDonated] = useState(0);
+  const [donationStats, setDonationStats] = useState<any>(null);
+
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
+  async function loadCertificates() {
+    try {
+      const [certRes, statsRes, pledgesRes] = await Promise.all([
+        getCertificates().catch(() => ({ certificates: [] })),
+        getDonationStats().catch(() => ({ stats: {} })),
+        getPledges().catch(() => ({ pledges: [] }))
+      ]);
+      setCertificates(certRes.certificates || []);
+      setDonationStats(statsRes.stats || {});
+      // Calculate total donated from user's completed pledges (not just minted NFTs)
+      const pledges = pledgesRes.pledges || [];
+      const totalFromPledges = pledges
+        .filter((p: any) => p.status === 'completed')
+        .reduce((sum: number, p: any) => sum + (p.estimatedUsd || 0), 0);
+      // Also include pending pledges since they represent user's intent to donate
+      const totalFromAllPledges = pledges
+        .reduce((sum: number, p: any) => sum + (p.estimatedUsd || 0), 0);
+      setTotalDonated(totalFromAllPledges);
+    } catch (e) {
+      console.error('Failed to load certificates:', e);
+    }
+  }
 
   // Use real user data or fallback
   const user = userData || {
     username: 'guest',
     displayName: 'Guest User',
     pointsBalance: 0,
-    ecoScore: 50,
-    streakCount: 0,
+    swapsThisMonth: 0,
+    friends: [],
     badges: [],
     friendCode: 'ECO-XXXX-XXXX',
+    scanHistory: [],
   };
+
+  // Count swaps from scan history (products that were actually swapped to an alternative)
+  const swapsFromHistory = (user.scanHistory || []).filter((scan: any) => scan.swappedTo).length;
+  const totalSwaps = swapsFromHistory || user.swapsThisMonth || 0;
+  const friendsCount = user.friends?.length || 0;
 
   const handleCopyFriendCode = () => {
     navigator.clipboard.writeText(user.friendCode);
@@ -49,7 +88,7 @@ export function ProfileScreen() {
   // Settings modal
   if (showSettings) {
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="min-h-screen bg-background pb-32">
         <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg border-b border-border">
           <div className="flex items-center gap-3 p-4">
             <button
@@ -108,7 +147,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-32">
       {/* header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="flex items-center justify-between p-4">
@@ -137,10 +176,10 @@ export function ProfileScreen() {
               <div>
                 <h2 className="text-xl font-bold">{user.displayName || user.username}</h2>
                 <p className="text-sm opacity-80">@{user.username}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Flame className="w-4 h-4" />
-                  <span className="text-sm">{user.streakCount} day streak</span>
-                </div>
+                <button className="flex items-center gap-2 mt-1 opacity-80 hover:opacity-100">
+                  <Users className="w-4 h-4" />
+                  <span className="text-sm">{friendsCount} friends</span>
+                </button>
               </div>
             </div>
 
@@ -150,67 +189,113 @@ export function ProfileScreen() {
                 <p className="text-2xl font-bold">{user.pointsBalance.toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-xl bg-white/10">
-                <p className="text-sm opacity-80">eco score</p>
-                <p className="text-2xl font-bold">{user.ecoScore}</p>
+                <p className="text-sm opacity-80">items swapped</p>
+                <p className="text-2xl font-bold">{totalSwaps}</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* quick actions */}
-        <div className="grid grid-cols-1 gap-3">
-          <Button variant="secondary" className="justify-start">
-            <Gift className="w-4 h-4 mr-2" />
-            share progress
-          </Button>
-        </div>
-
-        {/* eco score trend */}
-        <section className="p-4 rounded-2xl bg-card">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              your eco score trend
-            </h3>
+        {/* Share Impact Button */}
+        {totalDonated > 0 && (
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowImpactCert(true)}
+              className="w-full p-4 rounded-2xl bg-card border-2 border-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.3)] hover:shadow-[0_0_25px_rgba(251,146,60,0.5)] transition-all flex items-center justify-center gap-2"
+            >
+              <SolanaIcon className="w-5 h-5 text-orange-500" />
+              <span className="font-semibold text-orange-600">Share Your Impact</span>
+            </button>
+            {/* Dev button to clear certificates for testing */}
+            {import.meta.env.DEV && certificates.length > 0 && (
+              <button
+                onClick={async () => {
+                  try {
+                    await devClearCertificates();
+                    loadCertificates();
+                  } catch (e) {
+                    console.error('Failed to clear:', e);
+                  }
+                }}
+                className="w-full p-2 text-xs border border-dashed border-red-300 text-red-500 rounded-lg"
+              >
+                [dev] Clear my NFT certificates ({certificates.length})
+              </button>
+            )}
           </div>
-          <EcoScoreBar score={user.ecoScore} />
-          <p className="text-sm text-muted-foreground mt-2">
-            keep scanning and swapping to improve your score!
-          </p>
-        </section>
+        )}
 
-        {/* badges */}
+        {/* badges / nfts */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">badges earned</h3>
+            <h3 className="font-semibold">badges / nfts</h3>
             <button className="text-sm text-primary font-medium flex items-center gap-1">
               see all
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-          {user.badges && user.badges.length > 0 ? (
-            <div className="grid grid-cols-4 gap-4">
-              {user.badges.slice(0, 4).map((badge) => (
-                <BadgeDisplay 
-                  key={badge.badgeId} 
-                  badge={{
-                    id: badge.badgeId,
-                    name: badge.name,
-                    description: badge.description || '',
-                    icon: badge.icon || '🏆',
-                    earnedAt: new Date(badge.earnedAt),
-                    category: badge.category as any,
-                  }} 
-                  size="md" 
-                  showDetails 
-                />
-              ))}
+
+          {(user.badges && user.badges.length > 0) || certificates.length > 0 ? (
+            <div className="space-y-3">
+              {/* NFT Milestone Badges */}
+              {certificates.map((cert: any, i: number) => {
+                const badgeMeta: Record<number, { name: string; icon: string; color: string }> = {
+                  5: { name: 'Seedling', icon: '🌱', color: 'from-green-400 to-emerald-500' },
+                  25: { name: 'Sapling', icon: '🌿', color: 'from-emerald-500 to-teal-500' },
+                  50: { name: 'Tree', icon: '🌳', color: 'from-teal-500 to-cyan-500' },
+                  100: { name: 'Forest Guardian', icon: '🌲', color: 'from-cyan-500 to-blue-500' }
+                };
+                const meta = badgeMeta[cert.milestone] || { name: 'Impact', icon: '🌍', color: 'from-purple-500 to-indigo-600' };
+                return (
+                  <a
+                    key={`nft-${i}`}
+                    href={cert.explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-xl bg-card hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${meta.color} flex items-center justify-center text-xl`}>
+                        {meta.icon}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{meta.name} Badge</p>
+                        <p className="text-xs text-muted-foreground">
+                          ${cert.milestone} milestone · {new Date(cert.mintedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  </a>
+                );
+              })}
+
+              {/* Traditional Badges */}
+              {user.badges && user.badges.length > 0 && (
+                <div className="grid grid-cols-4 gap-4 pt-2">
+                  {user.badges.slice(0, 4).map((badge: any) => (
+                    <BadgeDisplay
+                      key={badge.badgeId}
+                      badge={{
+                        id: badge.badgeId,
+                        name: badge.name,
+                        description: badge.description || '',
+                        icon: badge.icon || '🏆',
+                        earnedAt: new Date(badge.earnedAt),
+                        category: badge.category as any,
+                      }}
+                      size="md"
+                      showDetails
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="p-6 rounded-2xl bg-card text-center">
               <Mascot size="md" mood="thinking" />
               <p className="mt-4 text-muted-foreground">
-                no badges yet. start scanning and swapping to earn badges!
+                no badges or nfts yet. donate to mint impact nfts!
               </p>
             </div>
           )}
@@ -241,6 +326,19 @@ export function ProfileScreen() {
           </p>
         </section>
       </div>
+
+      {/* Impact Certificate Modal */}
+      {showImpactCert && (
+        <ImpactCertificate
+          userName={user.displayName || user.username}
+          totalDonated={totalDonated}
+          onClose={() => {
+            setShowImpactCert(false);
+            // Refresh certificates to get newly minted one
+            loadCertificates();
+          }}
+        />
+      )}
     </div>
   );
 }

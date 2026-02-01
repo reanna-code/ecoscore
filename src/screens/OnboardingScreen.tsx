@@ -51,11 +51,13 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm text-center space-y-8">
-          {/* Logo placeholder */}
+          {/* Logo */}
           <div className="flex justify-center">
-            <div className="w-32 h-32 rounded-3xl bg-gradient-nature flex items-center justify-center shadow-elevated">
-              <span className="text-6xl font-bold text-white">e</span>
-            </div>
+            <img 
+              src="/ecoscore logo.png" 
+              alt="ecoscore logo" 
+              className="w-48 h-48 object-contain"
+            />
           </div>
 
           <div className="space-y-2">
