@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/Button';
-import { Camera, Upload, X, Zap, Image as ImageIcon, Plus, Trash2, Loader2, Link, ArrowRight } from 'lucide-react';
+import { Camera, Upload, X, Zap, Image as ImageIcon, Plus, Trash2, Loader2, Link, ArrowRight, Mic, MicOff } from 'lucide-react';
 import { AnalysisResultsScreen } from './AnalysisResultsScreen';
-import { analyzeProductWithGemini, analyzeProductFromUrl, fileToBase64, GeminiAnalysisResult } from '@/services/geminiService';
+import { analyzeProductWithGemini, analyzeProductFromUrl, analyzeProductFromText, fileToBase64, GeminiAnalysisResult } from '@/services/geminiService';
+import { speakText } from '@/services/elevenLabsService';
 
 // API key from environment variable
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -18,11 +19,16 @@ export function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isAnalyzingVoice, setIsAnalyzingVoice] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceModeActive, setVoiceModeActive] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -174,9 +180,125 @@ export function ScanScreen() {
     setError(null);
   };
 
+  const handleUseVoice = async () => {
+    const apiKey = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
+    const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      setVoiceError('Eleven Labs API key not found');
+      return;
+    }
+    
+    if (!geminiApiKey) {
+      setVoiceError('Gemini API key not found');
+      return;
+    }
+
+    // Check if Speech Recognition is available
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceError('Speech recognition is not supported in your browser');
+      return;
+    }
+
+    // Prompt user with voice to describe the product
+    try {
+      await speakText('Please describe the product. Include details like the product name, brand, materials, and category.', apiKey);
+    } catch (error) {
+      console.error('Error playing prompt:', error);
+    }
+
+    // Initialize speech recognition
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    let transcript = '';
+
+    recognition.onresult = async (event: any) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript + ' ';
+      }
+      
+      console.log('🎤 Voice transcript:', transcript);
+      
+      // Stop recording
+      setIsRecording(false);
+      
+      // Analyze the product description
+      setIsAnalyzingVoice(true);
+      setVoiceError(null);
+      setError(null);
+      
+      try {
+        const result = await analyzeProductFromText(transcript.trim(), geminiApiKey);
+        
+        console.log('✅ Product analyzed from voice:', result);
+        
+        // Update the analysis result
+        setAnalysisResult(result);
+      } catch (error) {
+        console.error('❌ Error analyzing product from voice:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        if (errorMessage.includes('product not found') || errorMessage.includes('no alternative found')) {
+          setVoiceError('product not found. no alternative found');
+          // Also speak the error
+          try {
+            await speakText('product not found. no alternative found', apiKey);
+          } catch (speakError) {
+            console.error('Error speaking error message:', speakError);
+          }
+        } else {
+          setVoiceError(errorMessage);
+        }
+      } finally {
+        setIsAnalyzingVoice(false);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsRecording(false);
+      setIsAnalyzingVoice(false);
+      setVoiceError(`Speech recognition error: ${event.message || event.error}`);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      setVoiceModeActive(false);
+    };
+
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    setVoiceError(null);
+    recognition.start();
+  };
+
+  const handleStopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+      setVoiceModeActive(false);
+    }
+  };
+
   const handleModeSwitch = (mode: InputMode) => {
     setInputMode(mode);
+    setVoiceModeActive(false);
     setError(null);
+  };
+
+  const handleVoiceButtonClick = () => {
+    if (isRecording) {
+      handleStopRecording();
+      setVoiceModeActive(false);
+    } else {
+      setVoiceModeActive(true);
+      setInputMode('image'); // Reset to image mode when using voice
+      handleUseVoice();
+    }
   };
 
   // Show camera view
@@ -229,6 +351,7 @@ export function ScanScreen() {
         capturedImages={capturedImages}
         onBack={handleBack}
         onScanAgain={handleScanAgain}
+        onAnalysisUpdate={setAnalysisResult}
       />
     );
   }
@@ -240,25 +363,57 @@ export function ScanScreen() {
         <div className="flex gap-2">
           <button
             onClick={() => handleModeSwitch('image')}
+            disabled={voiceModeActive || isRecording || isAnalyzingVoice}
             className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
-              inputMode === 'image'
-                ? 'bg-background text-foreground shadow-sm'
+              inputMode === 'image' && !voiceModeActive
+                ? 'bg-white text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
-            }`}
+            } ${voiceModeActive || isRecording || isAnalyzingVoice ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <ImageIcon className="w-4 h-4" />
             image
           </button>
           <button
             onClick={() => handleModeSwitch('url')}
+            disabled={voiceModeActive || isRecording || isAnalyzingVoice}
             className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
-              inputMode === 'url'
-                ? 'bg-background text-foreground shadow-sm'
+              inputMode === 'url' && !voiceModeActive
+                ? 'bg-white text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
-            }`}
+            } ${voiceModeActive || isRecording || isAnalyzingVoice ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Link className="w-4 h-4" />
             product url
+          </button>
+          <button
+            onClick={handleVoiceButtonClick}
+            disabled={isAnalyzingVoice || (voiceModeActive && !isRecording)}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+              isRecording
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : isAnalyzingVoice
+                ? 'bg-white text-foreground shadow-sm'
+                : voiceModeActive
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            } ${isAnalyzingVoice ? 'cursor-wait' : (voiceModeActive && !isRecording ? 'opacity-50 cursor-not-allowed' : '')}`}
+          >
+            {isRecording ? (
+              <>
+                <MicOff className="w-4 h-4" />
+                Stop
+              </>
+            ) : isAnalyzingVoice ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4" />
+                Use Voice
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -302,6 +457,17 @@ export function ScanScreen() {
                     </button>
                   )}
                 </div>
+                
+                {voiceError && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 text-sm">
+                    {voiceError}
+                  </div>
+                )}
+                {isAnalyzingVoice && (
+                  <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 text-sm text-center">
+                    Analyzing product description...
+                  </div>
+                )}
                 
                 {productUrl && isValidUrl(productUrl) && (
                   <div className="flex items-center gap-2 text-sm text-green-600">

@@ -65,22 +65,29 @@ export function CompareResultsScreen({
       // Build the text that's displayed on screen (matching exactly what user sees)
       const pickedLessEco = !choseGreener;
       let textToSpeak = '';
+      let voiceId: string | undefined = undefined;
 
       if (pickedLessEco) {
         // Text for less eco-friendly choice - matches screen text
         textToSpeak = "that's okay! next time try a greener pick — your leaf friend believes in you!";
+        // Use specific voice ID for original choice
+        voiceId = '5f9yB2oppQMBp00ATIIr';
       } else {
         // Text for greener choice - matches screen text including points badge
         textToSpeak = `nice swap! you earned ${earnedPoints} points. you just boosted your impact. your eco score is improving!`;
+        // Use default voice (Antoni) for greener choice
       }
 
       console.log('🎤 Playing voice:', textToSpeak);
+      if (voiceId) {
+        console.log('🎙️ Using custom voice ID:', voiceId);
+      }
 
       // Small delay to ensure screen is rendered and handle browser autoplay
       const playVoice = async () => {
         try {
           console.log('🚀 Starting voice playback...');
-          await speakText(textToSpeak, apiKey);
+          await speakText(textToSpeak, apiKey, voiceId);
           console.log('✅ Voice played successfully');
         } catch (error) {
           console.error('❌ Error playing voice:', error);

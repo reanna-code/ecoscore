@@ -23,7 +23,7 @@ const DEFAULT_VOICE_SETTINGS: ElevenLabsVoiceSettings = {
 };
 
 // Default voice ID (you can change this to any voice ID from Eleven Labs)
-const DEFAULT_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Antoni - a warm, male voice
+const DEFAULT_VOICE_ID = '5f9yB2oppQMBp00ATIIr'; // Antoni - a warm, male voice
 
 /**
  * Generate speech audio using Eleven Labs API

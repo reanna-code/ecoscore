@@ -599,6 +599,244 @@ QUALITY CHECK:
 ✓ Is productUrl set to null? (REQUIRED)
 ✓ Is searchUrl a valid Google Shopping search URL?`;
 
+// Text description analysis prompt
+const TEXT_DESCRIPTION_PROMPT = `You are an eco-sustainability expert. The user has provided a verbal description of a product. Analyze this description and provide a detailed environmental assessment using our EcoScore algorithm.
+
+User's product description: {DESCRIPTION}
+
+IMPORTANT: If the description lacks sufficient detail (e.g., missing product name, brand, materials, category, or specific characteristics), respond with this EXACT JSON:
+{
+  "error": "insufficient_details",
+  "message": "product not found. no alternative found"
+}
+
+If the description has enough detail, analyze it and respond with the standard EcoScore format.
+
+=== ECOSCORE ALGORITHM ===
+Calculate the final EcoScore using this formula:
+EcoScore = 0.25*S_packaging + 0.25*S_materials + 0.20*S_carbon + 0.15*S_water + 0.15*S_ethics
+
+1. PACKAGING & RECYCLABILITY (Weight: 0.25)
+   S_packaging = 0.5*R + 0.3*M + 0.2*W
+   - R (Recyclability): recyclable=100, partially recyclable=60, non-recyclable=10
+   - M (Material Type): paper/aluminum/glass=100, bioplastic=70, mixed plastic=30
+   - W (Weight Efficiency): low packaging volume per unit=high score (0-100)
+
+2. MATERIALS / INGREDIENTS IMPACT (Weight: 0.25)
+   S_materials = 0.6*H + 0.4*R
+   - H (Harmful Ingredients): no harmful ingredients=100, some flagged=50, many flagged=10
+   - R (Renewable Sourcing): % of renewable/responsibly sourced materials (0-100)
+
+3. CARBON FOOTPRINT & TRANSPORT (Weight: 0.20)
+   S_carbon = 100 - min(100, E + T)
+   - E (Emissions): low/local/plant-based=10, medium=40, high/global/energy-intensive=70
+   - T (Transport): local <200km=0, domestic=10, international=30
+
+4. WATER USAGE (Weight: 0.15)
+   S_water = 100 - W_u
+   - W_u (Industry Intensity): electronics/refills=10, processed foods=40, cotton/meat=70-90
+
+5. SUPPLY CHAIN ETHICS & TRANSPARENCY (Weight: 0.15)
+   S_ethics = 0.5*C + 0.5*T
+   - C (Certifications): Fairtrade, B Corp, FSC, organic certifications (0-100)
+   - T (Transparency): publishes sourcing & audits=high, vague claims=low (0-100)
+
+Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, just raw JSON):
+{
+  "productName": "exact product name",
+  "brand": "brand name or null if unknown",
+  "category": "product category (e.g., food, clothing, cosmetics, electronics, household, furniture)",
+  "materials": ["list", "of", "materials", "identified"],
+  "ingredients": ["list", "of", "ingredients", "if applicable"],
+  "ecoScore": 0-100,
+  "ecoScoreBreakdown": {
+    "packaging": 0-100,
+    "materials": 0-100,
+    "carbonFootprint": 0-100,
+    "waterUse": 0-100,
+    "ethics": 0-100,
+    "recyclability": 0-100
+  },
+  "detailedBreakdown": {
+    "packaging": {
+      "score": 0-100,
+      "recyclability": { "score": 0-100, "label": "Recyclable/Partially/Non-recyclable" },
+      "materialType": { "score": 0-100, "label": "Paper/Glass/Aluminum/Bioplastic/Mixed Plastic" },
+      "weightEfficiency": { "score": 0-100, "label": "Minimal/Moderate/Excessive packaging" }
+    },
+    "materials": {
+      "score": 0-100,
+      "harmfulIngredients": { "score": 0-100, "label": "None detected/Some flagged/Many flagged" },
+      "renewableSourcing": { "score": 0-100, "label": "X% renewable/responsibly sourced" }
+    },
+    "carbon": {
+      "score": 0-100,
+      "emissions": { "score": 0-100, "label": "Low/Medium/High emissions" },
+      "transport": { "score": 0-100, "label": "Local/Domestic/International" }
+    },
+    "water": {
+      "score": 0-100,
+      "industryIntensity": { "score": 0-100, "label": "Low/Medium/High water industry" }
+    },
+    "ethics": {
+      "score": 0-100,
+      "certifications": { "score": 0-100, "label": "List certifications or None" },
+      "transparency": { "score": 0-100, "label": "High/Medium/Low transparency" }
+    }
+  },
+  "concerns": ["specific environmental concerns about this product"],
+  "positives": ["any eco-friendly aspects of this product"],
+  "alternatives": [
+    {
+      "name": "greener alternative product name",
+      "brand": "brand name",
+      "reason": "why this is more eco-friendly",
+      "estimatedEcoScore": 0-100,
+      "whereToBuy": ["store or website names"],
+      "estimatedPrice": {
+        "min": 5.99,
+        "max": 12.99,
+        "currency": "USD"
+      },
+      "productUrl": null,
+      "searchUrl": "https://www.google.com/search?tbm=shop&q=Brand+Product+Name",
+      "isPartner": true
+    }
+  ],
+  "summary": "2-3 sentence summary of the product's environmental impact"
+}
+
+VALIDATION: The description must include at least:
+- Product name or type
+- Category (clothing, food, electronics, etc.)
+- Material information (for clothing: fabric type; for food: ingredients; etc.)
+- Brand (if known)
+
+If any of these are missing, return the error JSON above.
+
+=== ALTERNATIVES INSTRUCTIONS (CRITICAL - READ CAREFULLY) ===
+
+PRIORITY #1 - RELEVANCE: Alternatives MUST be directly similar to the described product.
+- Same product category (e.g., if user describes shampoo, suggest eco-friendly shampoos, NOT clothing)
+- Same function/use case (e.g., if user describes running shoes, suggest eco-friendly running shoes)
+- Similar price range when possible
+
+PRIORITY #2 - NO BROKEN LINKS: 
+⚠️ CRITICAL: DO NOT generate specific product URLs - they often lead to 404 errors!
+- Set productUrl to NULL for all alternatives (we cannot verify if product pages exist)
+- Instead, ALWAYS provide a searchUrl using this format:
+  searchUrl: "https://www.google.com/search?tbm=shop&q=" + URL-encoded brand and product name
+  Example: "https://www.google.com/search?tbm=shop&q=Patagonia+Organic+Cotton+Hoodie"
+- The searchUrl will always work and help users find the product
+
+PARTNER COMPANIES (bonus, NOT required): ${PARTNER_COMPANIES.join(', ')}
+- ONLY include partner products if they make a DIRECTLY RELEVANT alternative
+- Do NOT force partner products that don't match the product category
+- Set isPartner: true for partner brands, false for others
+
+INSTRUCTIONS:
+1. Find 4-6 eco-friendly alternatives that serve the SAME PURPOSE as the described product
+2. Each alternative must be a real, purchasable product from a real brand
+3. Set productUrl to null (do NOT guess URLs)
+4. Generate searchUrl as a Google Shopping search: "https://www.google.com/search?tbm=shop&q=" + encoded product name
+5. Include estimatedPrice based on typical retail prices
+
+URL FORMAT EXAMPLES:
+- Brand: "Patagonia", Product: "Organic Cotton Hoodie" 
+  → searchUrl: "https://www.google.com/search?tbm=shop&q=Patagonia+Organic+Cotton+Hoodie"
+- Brand: "Seventh Generation", Product: "Dish Soap"
+  → searchUrl: "https://www.google.com/search?tbm=shop&q=Seventh+Generation+Dish+Soap"
+
+QUALITY CHECK:
+✓ Is this product the same category as what was described?
+✓ Does this product serve the same function?
+✓ Is productUrl set to null? (REQUIRED)
+✓ Is searchUrl a valid Google Shopping search URL?`;
+
+// Analyze product from text description
+export async function analyzeProductFromText(
+  description: string,
+  apiKey: string
+): Promise<GeminiAnalysisResult> {
+  console.log('Starting text-based product analysis...');
+  
+  const prompt = TEXT_DESCRIPTION_PROMPT.replace('{DESCRIPTION}', description);
+
+  let lastError: Error | null = null;
+
+  // Try each model until one works
+  for (const model of MODELS_TO_TRY) {
+    console.log(`Trying model: ${model}`);
+    try {
+      const response = await fetchWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.4,
+              topK: 32,
+              topP: 1,
+              maxOutputTokens: 8192,
+            },
+          }),
+        },
+        60000 // 60 second timeout per model
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (textContent) {
+          console.log(`Successfully used model: ${model}`);
+          const parsed = JSON.parse(textContent.trim());
+          
+          // Check if Gemini returned an error for insufficient details
+          if (parsed.error === 'insufficient_details') {
+            throw new Error(parsed.message || 'product not found. no alternative found');
+          }
+          
+          return parseGeminiResponse(textContent);
+        }
+      } else {
+        const errorData = await response.json();
+        const errorMessage = errorData.error?.message || `Model ${model} failed`;
+        console.warn(`Model ${model} failed:`, errorMessage);
+        lastError = new Error(errorMessage);
+        
+        // If it's an API key error, don't try other models
+        if (errorMessage.includes('API key') || errorMessage.includes('permission')) {
+          throw new Error(errorMessage);
+        }
+      }
+    } catch (err) {
+      console.warn(`Model ${model} error:`, err);
+      lastError = err instanceof Error ? err : new Error(String(err));
+      
+      // If it's an API key or permission error, throw immediately
+      if (lastError.message.includes('API key') || lastError.message.includes('permission')) {
+        throw lastError;
+      }
+      
+      // If it's the insufficient details error, throw it
+      if (lastError.message.includes('product not found') || lastError.message.includes('no alternative found')) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError || new Error("All models failed. Please check your API key and try again.");
+}
+
 // Analyze product from URL
 export async function analyzeProductFromUrl(
   productUrl: string,
