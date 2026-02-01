@@ -63,41 +63,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Listen for Firebase auth state changes
   useEffect(() => {
     // Auto-logout on every refresh for testing
-    const autoLogout = async () => {
+    const initAuth = async () => {
       try {
         await logOut();
       } catch (error) {
         console.log('Auto-logout failed:', error);
       }
-    };
-    
-    autoLogout();
 
-    const unsubscribe = onAuthChange(async (user) => {
-      setFirebaseUser(user);
-      
-      if (user) {
-        // User is signed in, try to get their data from our API
-        try {
-          const response = await getCurrentUser();
-          setUserData(response.user);
-          setNeedsRegistration(false);
-        } catch (error) {
-          // User exists in Firebase but not in our DB - needs registration
-          console.log('User needs to complete registration');
-          setNeedsRegistration(true);
+      const unsubscribe = onAuthChange(async (user) => {
+        setFirebaseUser(user);
+        
+        if (user) {
+          // User is signed in, try to get their data from our API
+          try {
+            const response = await getCurrentUser();
+            setUserData(response.user);
+            setNeedsRegistration(false);
+          } catch (error) {
+            // User exists in Firebase but not in our DB - needs registration
+            console.log('User needs to complete registration');
+            setNeedsRegistration(true);
+            setUserData(null);
+          }
+        } else {
+          // User is signed out
           setUserData(null);
+          setNeedsRegistration(false);
         }
-      } else {
-        // User is signed out
-        setUserData(null);
-        setNeedsRegistration(false);
-      }
-      
-      setIsLoading(false);
-    });
+        
+        setIsLoading(false);
+      });
 
-    return () => unsubscribe();
+      return unsubscribe;
+    };
+
+    const unsubscribePromise = initAuth();
+    
+    return () => {
+      unsubscribePromise.then(unsubscribe => unsubscribe());
+    };
   }, []);
 
   // Register a new user in our MongoDB
