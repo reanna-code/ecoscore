@@ -92,7 +92,7 @@ export function AuthScreen({ onNeedsUsername }: AuthScreenProps) {
             <div className="space-y-2">
               <h1 className="text-3xl font-bold text-foreground">ecoscore</h1>
               <p className="text-muted-foreground">
-                scan products. make greener choices. earn rewards.
+                scan products. make greener choices. earn points.
               </p>
             </div>
 

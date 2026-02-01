@@ -17,7 +17,7 @@ const slides = [
   },
   {
     icon: Gift,
-    title: 'swap smarter, earn rewards',
+    title: 'swap smarter, earn points',
     description: 'get real alternatives and earn points and badges for choosing greener options',
     mascotMood: 'excited' as const,
   },

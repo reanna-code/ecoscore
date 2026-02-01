@@ -41,6 +41,9 @@ router.get('/', optionalAuth, async (req, res) => {
  * GET /api/leaderboard/friends
  * Get leaderboard of user's friends only
  */
+// Seed users to always show on leaderboard (no friend request needed)
+const SEED_LEADERBOARD_USERNAMES = ['angie', 'angie2'];
+
 router.get('/friends', authenticateToken, async (req, res) => {
   try {
     const currentUser = await User.findOne({ firebaseUid: req.user.uid });
@@ -48,9 +51,13 @@ router.get('/friends', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get friends + current user for comparison
-    const userIds = [...currentUser.friends, currentUser._id];
-    
+    // Get friends + current user + seed users (angie, angie2) for comparison
+    const seedUsers = await User.find({ username: { $in: SEED_LEADERBOARD_USERNAMES } })
+      .select('_id username displayName avatarUrl ecoScore pointsBalance totalPointsEarned badges streakCount swapsThisMonth');
+    const seedUserIds = seedUsers.map(u => u._id);
+
+    const userIds = [...new Set([...currentUser.friends, currentUser._id, ...seedUserIds])];
+
     // Always sort by pointsBalance (current balance) in descending order
     const users = await User.find({ _id: { $in: userIds } })
       .sort({ pointsBalance: -1 })
