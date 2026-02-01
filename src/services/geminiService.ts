@@ -1,5 +1,44 @@
 // Gemini Vision API service for product analysis
 
+// Detailed sub-score breakdowns based on the EcoScore algorithm
+export interface PackagingBreakdown {
+  score: number; // S_packaging = 0.5·R + 0.3·M + 0.2·W
+  recyclability: { score: number; label: string }; // R: recyclable=100, partial=60, non=10
+  materialType: { score: number; label: string }; // M: paper/glass/aluminum=100, bioplastic=70, mixed plastic=30
+  weightEfficiency: { score: number; label: string }; // W: low packaging = higher score
+}
+
+export interface MaterialsBreakdown {
+  score: number; // S_materials = 0.6·H + 0.4·R
+  harmfulIngredients: { score: number; label: string }; // H: none=100, some=50, many=10
+  renewableSourcing: { score: number; label: string }; // R: % renewable/responsibly sourced
+}
+
+export interface CarbonBreakdown {
+  score: number; // S_carbon = 100 - min(100, E + T)
+  emissions: { score: number; label: string }; // E: low=10, medium=40, high=70
+  transport: { score: number; label: string }; // T: local=0, domestic=10, international=30
+}
+
+export interface WaterBreakdown {
+  score: number; // S_water = 100 - W_u
+  industryIntensity: { score: number; label: string }; // W_u: low=10, medium=40, high=70-90
+}
+
+export interface EthicsBreakdown {
+  score: number; // S_ethics = 0.5·C + 0.5·T
+  certifications: { score: number; label: string }; // C: Fairtrade, B Corp, FSC
+  transparency: { score: number; label: string }; // T: publishes sourcing = high
+}
+
+export interface DetailedEcoScoreBreakdown {
+  packaging: PackagingBreakdown;
+  materials: MaterialsBreakdown;
+  carbon: CarbonBreakdown;
+  water: WaterBreakdown;
+  ethics: EthicsBreakdown;
+}
+
 export interface GeminiAnalysisResult {
   productName: string;
   brand: string | null;
@@ -15,6 +54,7 @@ export interface GeminiAnalysisResult {
     ethics: number;
     recyclability: number;
   };
+  detailedBreakdown: DetailedEcoScoreBreakdown;
   concerns: string[];
   positives: string[];
   alternatives: GeminiAlternative[];
@@ -33,10 +73,11 @@ export interface GeminiAlternative {
     currency: string;
   } | null;
   productUrl: string | null;
+  searchUrl: string; // Google Shopping search URL - always works
   isPartner: boolean;
 }
 
-// Partner companies to prioritize for alternatives
+// Partner companies (only suggest if they have RELEVANT products)
 const PARTNER_COMPANIES = [
   'Patagonia',
   'Allbirds', 
@@ -47,10 +88,36 @@ const PARTNER_COMPANIES = [
   "Tom's of Maine"
 ];
 
-const ANALYSIS_PROMPT = `You are an eco-sustainability expert. Analyze this product image (tag, label, packaging, or barcode) and provide a detailed environmental assessment.
+const ANALYSIS_PROMPT = `You are an eco-sustainability expert. Analyze this product image (tag, label, packaging, or barcode) and provide a detailed environmental assessment using our EcoScore algorithm.
 
-IMPORTANT - PARTNER COMPANIES: We have partnerships with these eco-friendly brands. ALWAYS check these brands FIRST for alternatives and list them at the TOP of the alternatives list:
-${PARTNER_COMPANIES.map(c => `- ${c}`).join('\n')}
+=== ECOSCORE ALGORITHM ===
+Calculate the final EcoScore using this formula:
+EcoScore = 0.25×S_packaging + 0.25×S_materials + 0.20×S_carbon + 0.15×S_water + 0.15×S_ethics
+
+1. PACKAGING & RECYCLABILITY (Weight: 0.25)
+   S_packaging = 0.5×R + 0.3×M + 0.2×W
+   - R (Recyclability): recyclable=100, partially recyclable=60, non-recyclable=10
+   - M (Material Type): paper/aluminum/glass=100, bioplastic=70, mixed plastic=30
+   - W (Weight Efficiency): low packaging volume per unit=high score (0-100)
+
+2. MATERIALS / INGREDIENTS IMPACT (Weight: 0.25)
+   S_materials = 0.6×H + 0.4×R
+   - H (Harmful Ingredients): no harmful ingredients=100, some flagged=50, many flagged=10
+   - R (Renewable Sourcing): % of renewable/responsibly sourced materials (0-100)
+
+3. CARBON FOOTPRINT & TRANSPORT (Weight: 0.20)
+   S_carbon = 100 - min(100, E + T)
+   - E (Emissions): low/local/plant-based=10, medium=40, high/global/energy-intensive=70
+   - T (Transport): local <200km=0, domestic=10, international=30
+
+4. WATER USAGE (Weight: 0.15)
+   S_water = 100 - W_u
+   - W_u (Industry Intensity): electronics/refills=10, processed foods=40, cotton/meat=70-90
+
+5. SUPPLY CHAIN ETHICS & TRANSPARENCY (Weight: 0.15)
+   S_ethics = 0.5×C + 0.5×T
+   - C (Certifications): Fairtrade, B Corp, FSC, organic certifications (0-100)
+   - T (Transparency): publishes sourcing & audits=high, vague claims=low (0-100)
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, just raw JSON):
 {
@@ -68,6 +135,33 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
     "ethics": 0-100,
     "recyclability": 0-100
   },
+  "detailedBreakdown": {
+    "packaging": {
+      "score": 0-100,
+      "recyclability": { "score": 0-100, "label": "Recyclable/Partially/Non-recyclable" },
+      "materialType": { "score": 0-100, "label": "Paper/Glass/Aluminum/Bioplastic/Mixed Plastic" },
+      "weightEfficiency": { "score": 0-100, "label": "Minimal/Moderate/Excessive packaging" }
+    },
+    "materials": {
+      "score": 0-100,
+      "harmfulIngredients": { "score": 0-100, "label": "None detected/Some flagged/Many flagged" },
+      "renewableSourcing": { "score": 0-100, "label": "X% renewable/responsibly sourced" }
+    },
+    "carbon": {
+      "score": 0-100,
+      "emissions": { "score": 0-100, "label": "Low/Medium/High emissions" },
+      "transport": { "score": 0-100, "label": "Local/Domestic/International" }
+    },
+    "water": {
+      "score": 0-100,
+      "industryIntensity": { "score": 0-100, "label": "Low/Medium/High water industry" }
+    },
+    "ethics": {
+      "score": 0-100,
+      "certifications": { "score": 0-100, "label": "List certifications or None" },
+      "transparency": { "score": 0-100, "label": "High/Medium/Low transparency" }
+    }
+  },
   "concerns": ["specific environmental concerns about this product"],
   "positives": ["any eco-friendly aspects of this product"],
   "alternatives": [
@@ -82,33 +176,52 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
         "max": 12.99,
         "currency": "USD"
       },
-      "productUrl": "https://www.brand.com/product-page",
+      "productUrl": null,
+      "searchUrl": "https://www.google.com/search?tbm=shop&q=Brand+Product+Name",
       "isPartner": true
     }
   ],
   "summary": "2-3 sentence summary of the product's environmental impact"
 }
 
-Eco-Score Criteria (use this for scoring):
-- Packaging (0-100): Single-use plastic = low, recyclable/compostable = high, no packaging = highest
-- Materials (0-100): Synthetic/petroleum-based = low, natural/organic/recycled = high
-- Carbon Footprint (0-100): Long transport/high emissions = low, local/low emissions = high
-- Water Use (0-100): High water consumption in production = low, water-efficient = high
-- Ethics (0-100): Poor labor practices/no certifications = low, fair trade/certified = high
-- Recyclability (0-100): Non-recyclable = low, easily recyclable/biodegradable = high
+=== ALTERNATIVES INSTRUCTIONS (CRITICAL - READ CAREFULLY) ===
 
-Overall ecoScore should be a weighted average: Packaging 20%, Materials 25%, Carbon 20%, Water 10%, Ethics 15%, Recyclability 10%
+PRIORITY #1 - RELEVANCE: Alternatives MUST be directly similar to the scanned product.
+- Same product category (e.g., if user scans shampoo, suggest eco-friendly shampoos, NOT clothing)
+- Same function/use case (e.g., if user scans running shoes, suggest eco-friendly running shoes)
+- Similar price range when possible
 
-ALTERNATIVES INSTRUCTIONS:
-1. FIRST, search for similar/equivalent products from our PARTNER COMPANIES (${PARTNER_COMPANIES.join(', ')}). List these FIRST with isPartner: true.
-2. THEN, search more broadly for other eco-friendly alternatives and list those AFTER partner products with isPartner: false.
-3. Provide 4-8 total alternatives (prioritize 2-4 from partners if applicable to the product category).
-4. For EACH alternative, you MUST include:
-   - productUrl: The ACTUAL product page URL on the brand's website (e.g., https://www.patagonia.com/product/xxx or https://www.allbirds.com/products/xxx). Use real, working URLs.
-   - estimatedPrice: Current retail price range in USD
-   - isPartner: true if from partner list, false otherwise
+PRIORITY #2 - NO BROKEN LINKS: 
+⚠️ CRITICAL: DO NOT generate specific product URLs - they often lead to 404 errors!
+- Set productUrl to NULL for all alternatives (we cannot verify if product pages exist)
+- Instead, ALWAYS provide a searchUrl using this format:
+  searchUrl: "https://www.google.com/search?tbm=shop&q=" + URL-encoded brand and product name
+  Example: "https://www.google.com/search?tbm=shop&q=Patagonia+Organic+Cotton+Hoodie"
+- The searchUrl will always work and help users find the product
 
-Be specific with exact product names and real URLs that users can click to purchase.`;
+PARTNER COMPANIES (bonus, NOT required): ${PARTNER_COMPANIES.join(', ')}
+- ONLY include partner products if they make a DIRECTLY RELEVANT alternative
+- Do NOT force partner products that don't match the product category
+- Set isPartner: true for partner brands, false for others
+
+INSTRUCTIONS:
+1. Find 4-6 eco-friendly alternatives that serve the SAME PURPOSE as the scanned product
+2. Each alternative must be a real, purchasable product from a real brand
+3. Set productUrl to null (do NOT guess URLs)
+4. Generate searchUrl as a Google Shopping search: "https://www.google.com/search?tbm=shop&q=" + encoded product name
+5. Include estimatedPrice based on typical retail prices
+
+URL FORMAT EXAMPLES:
+- Brand: "Patagonia", Product: "Organic Cotton Hoodie" 
+  → searchUrl: "https://www.google.com/search?tbm=shop&q=Patagonia+Organic+Cotton+Hoodie"
+- Brand: "Seventh Generation", Product: "Dish Soap"
+  → searchUrl: "https://www.google.com/search?tbm=shop&q=Seventh+Generation+Dish+Soap"
+
+QUALITY CHECK:
+✓ Is this product the same category as what was scanned?
+✓ Does this product serve the same function?
+✓ Is productUrl set to null? (REQUIRED)
+✓ Is searchUrl a valid Google Shopping search URL?`;
 
 // Models to try in order of preference (2026 model names)
 const MODELS_TO_TRY = [
@@ -178,11 +291,11 @@ export async function analyzeProductWithGemini(
               temperature: 0.4,
               topK: 32,
               topP: 1,
-              maxOutputTokens: 4096,
+              maxOutputTokens: 8192,
             },
           }),
         },
-        30000 // 30 second timeout per model
+        60000 // 60 second timeout per model
       );
 
       if (response.ok) {
@@ -231,13 +344,109 @@ function parseGeminiResponse(textContent: string): GeminiAnalysisResult {
     jsonString = jsonString.slice(0, -3);
   }
 
+  jsonString = jsonString.trim();
+
+  // Try to parse directly first
   try {
-    const result: GeminiAnalysisResult = JSON.parse(jsonString.trim());
+    const result: GeminiAnalysisResult = JSON.parse(jsonString);
     return result;
   } catch (parseError) {
-    console.error("Failed to parse Gemini response:", textContent);
-    throw new Error("Failed to parse product analysis");
+    console.warn("Initial JSON parse failed, attempting to repair truncated response...");
+    
+    // Try to repair truncated JSON
+    const repairedJson = repairTruncatedJson(jsonString);
+    
+    try {
+      const result: GeminiAnalysisResult = JSON.parse(repairedJson);
+      console.log("Successfully repaired and parsed truncated JSON");
+      return result;
+    } catch (repairError) {
+      console.error("Failed to parse Gemini response:", textContent);
+      console.error("Repair attempt also failed");
+      throw new Error("Failed to parse product analysis. The response may have been truncated.");
+    }
   }
+}
+
+// Attempt to repair truncated JSON by closing open brackets/braces
+function repairTruncatedJson(jsonString: string): string {
+  let repaired = jsonString.trim();
+  
+  // Count open brackets and braces
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escapeNext = false;
+  
+  for (let i = 0; i < repaired.length; i++) {
+    const char = repaired[i];
+    
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    
+    if (!inString) {
+      if (char === '{') openBraces++;
+      else if (char === '}') openBraces--;
+      else if (char === '[') openBrackets++;
+      else if (char === ']') openBrackets--;
+    }
+  }
+  
+  // If we're in the middle of a string, close it
+  if (inString) {
+    repaired += '"';
+  }
+  
+  // Check if we're in the middle of an object in an array (e.g., alternatives array)
+  // Try to close the current object properly
+  if (openBraces > 0 || openBrackets > 0) {
+    // Remove trailing comma if present
+    repaired = repaired.replace(/,\s*$/, '');
+    
+    // If the last non-whitespace is a property value indicator, add null
+    if (repaired.match(/:\s*$/)) {
+      repaired += 'null';
+    }
+    
+    // Add missing summary if we detect we're near the end of alternatives
+    if (!repaired.includes('"summary"') && repaired.includes('"alternatives"')) {
+      // Close any open objects in alternatives
+      while (openBraces > 1) {
+        repaired += '}';
+        openBraces--;
+      }
+      while (openBrackets > 0) {
+        repaired += ']';
+        openBrackets--;
+      }
+      // Add default summary
+      repaired += ', "summary": "Analysis completed with limited data due to response truncation."';
+    }
+    
+    // Close remaining brackets and braces
+    while (openBrackets > 0) {
+      repaired += ']';
+      openBrackets--;
+    }
+    while (openBraces > 0) {
+      repaired += '}';
+      openBraces--;
+    }
+  }
+  
+  return repaired;
 }
 
 // Convert file to base64
@@ -251,14 +460,40 @@ export function fileToBase64(file: File): Promise<string> {
 }
 
 // URL analysis prompt
-const URL_ANALYSIS_PROMPT = `You are an eco-sustainability expert. The user has provided a product URL. Based on the URL and your knowledge of this product, provide a detailed environmental assessment.
+const URL_ANALYSIS_PROMPT = `You are an eco-sustainability expert. The user has provided a product URL. Based on the URL and your knowledge of this product, provide a detailed environmental assessment using our EcoScore algorithm.
 
 Product URL: {URL}
 
 Research this product thoroughly based on the URL provided. Identify the product, brand, and all relevant details.
 
-IMPORTANT - PARTNER COMPANIES: We have partnerships with these eco-friendly brands. ALWAYS check these brands FIRST for alternatives and list them at the TOP of the alternatives list:
-${PARTNER_COMPANIES.map(c => `- ${c}`).join('\n')}
+=== ECOSCORE ALGORITHM ===
+Calculate the final EcoScore using this formula:
+EcoScore = 0.25*S_packaging + 0.25*S_materials + 0.20*S_carbon + 0.15*S_water + 0.15*S_ethics
+
+1. PACKAGING & RECYCLABILITY (Weight: 0.25)
+   S_packaging = 0.5*R + 0.3*M + 0.2*W
+   - R (Recyclability): recyclable=100, partially recyclable=60, non-recyclable=10
+   - M (Material Type): paper/aluminum/glass=100, bioplastic=70, mixed plastic=30
+   - W (Weight Efficiency): low packaging volume per unit=high score (0-100)
+
+2. MATERIALS / INGREDIENTS IMPACT (Weight: 0.25)
+   S_materials = 0.6*H + 0.4*R
+   - H (Harmful Ingredients): no harmful ingredients=100, some flagged=50, many flagged=10
+   - R (Renewable Sourcing): % of renewable/responsibly sourced materials (0-100)
+
+3. CARBON FOOTPRINT & TRANSPORT (Weight: 0.20)
+   S_carbon = 100 - min(100, E + T)
+   - E (Emissions): low/local/plant-based=10, medium=40, high/global/energy-intensive=70
+   - T (Transport): local <200km=0, domestic=10, international=30
+
+4. WATER USAGE (Weight: 0.15)
+   S_water = 100 - W_u
+   - W_u (Industry Intensity): electronics/refills=10, processed foods=40, cotton/meat=70-90
+
+5. SUPPLY CHAIN ETHICS & TRANSPARENCY (Weight: 0.15)
+   S_ethics = 0.5*C + 0.5*T
+   - C (Certifications): Fairtrade, B Corp, FSC, organic certifications (0-100)
+   - T (Transparency): publishes sourcing & audits=high, vague claims=low (0-100)
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, just raw JSON):
 {
@@ -276,6 +511,33 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
     "ethics": 0-100,
     "recyclability": 0-100
   },
+  "detailedBreakdown": {
+    "packaging": {
+      "score": 0-100,
+      "recyclability": { "score": 0-100, "label": "Recyclable/Partially/Non-recyclable" },
+      "materialType": { "score": 0-100, "label": "Paper/Glass/Aluminum/Bioplastic/Mixed Plastic" },
+      "weightEfficiency": { "score": 0-100, "label": "Minimal/Moderate/Excessive packaging" }
+    },
+    "materials": {
+      "score": 0-100,
+      "harmfulIngredients": { "score": 0-100, "label": "None detected/Some flagged/Many flagged" },
+      "renewableSourcing": { "score": 0-100, "label": "X% renewable/responsibly sourced" }
+    },
+    "carbon": {
+      "score": 0-100,
+      "emissions": { "score": 0-100, "label": "Low/Medium/High emissions" },
+      "transport": { "score": 0-100, "label": "Local/Domestic/International" }
+    },
+    "water": {
+      "score": 0-100,
+      "industryIntensity": { "score": 0-100, "label": "Low/Medium/High water industry" }
+    },
+    "ethics": {
+      "score": 0-100,
+      "certifications": { "score": 0-100, "label": "List certifications or None" },
+      "transparency": { "score": 0-100, "label": "High/Medium/Low transparency" }
+    }
+  },
   "concerns": ["specific environmental concerns about this product"],
   "positives": ["any eco-friendly aspects of this product"],
   "alternatives": [
@@ -290,33 +552,52 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
         "max": 12.99,
         "currency": "USD"
       },
-      "productUrl": "https://www.brand.com/product-page",
+      "productUrl": null,
+      "searchUrl": "https://www.google.com/search?tbm=shop&q=Brand+Product+Name",
       "isPartner": true
     }
   ],
   "summary": "2-3 sentence summary of the product's environmental impact"
 }
 
-Eco-Score Criteria (use this for scoring):
-- Packaging (0-100): Single-use plastic = low, recyclable/compostable = high, no packaging = highest
-- Materials (0-100): Synthetic/petroleum-based = low, natural/organic/recycled = high
-- Carbon Footprint (0-100): Long transport/high emissions = low, local/low emissions = high
-- Water Use (0-100): High water consumption in production = low, water-efficient = high
-- Ethics (0-100): Poor labor practices/no certifications = low, fair trade/certified = high
-- Recyclability (0-100): Non-recyclable = low, easily recyclable/biodegradable = high
+=== ALTERNATIVES INSTRUCTIONS (CRITICAL - READ CAREFULLY) ===
 
-Overall ecoScore should be a weighted average: Packaging 20%, Materials 25%, Carbon 20%, Water 10%, Ethics 15%, Recyclability 10%
+PRIORITY #1 - RELEVANCE: Alternatives MUST be directly similar to the product from the URL.
+- Same product category (e.g., if URL is for shampoo, suggest eco-friendly shampoos, NOT clothing)
+- Same function/use case (e.g., if URL is for running shoes, suggest eco-friendly running shoes)
+- Similar price range when possible
 
-ALTERNATIVES INSTRUCTIONS:
-1. FIRST, search for similar/equivalent products from our PARTNER COMPANIES (${PARTNER_COMPANIES.join(', ')}). List these FIRST with isPartner: true.
-2. THEN, search more broadly for other eco-friendly alternatives and list those AFTER partner products with isPartner: false.
-3. Provide 4-8 total alternatives (prioritize 2-4 from partners if applicable to the product category).
-4. For EACH alternative, you MUST include:
-   - productUrl: The ACTUAL product page URL on the brand's website (e.g., https://www.patagonia.com/product/xxx or https://www.allbirds.com/products/xxx). Use real, working URLs.
-   - estimatedPrice: Current retail price range in USD
-   - isPartner: true if from partner list, false otherwise
+PRIORITY #2 - NO BROKEN LINKS: 
+⚠️ CRITICAL: DO NOT generate specific product URLs - they often lead to 404 errors!
+- Set productUrl to NULL for all alternatives (we cannot verify if product pages exist)
+- Instead, ALWAYS provide a searchUrl using this format:
+  searchUrl: "https://www.google.com/search?tbm=shop&q=" + URL-encoded brand and product name
+  Example: "https://www.google.com/search?tbm=shop&q=Patagonia+Organic+Cotton+Hoodie"
+- The searchUrl will always work and help users find the product
 
-Be specific with exact product names and real URLs that users can click to purchase.`;
+PARTNER COMPANIES (bonus, NOT required): ${PARTNER_COMPANIES.join(', ')}
+- ONLY include partner products if they make a DIRECTLY RELEVANT alternative
+- Do NOT force partner products that don't match the product category
+- Set isPartner: true for partner brands, false for others
+
+INSTRUCTIONS:
+1. Find 4-6 eco-friendly alternatives that serve the SAME PURPOSE as the product in the URL
+2. Each alternative must be a real, purchasable product from a real brand
+3. Set productUrl to null (do NOT guess URLs)
+4. Generate searchUrl as a Google Shopping search: "https://www.google.com/search?tbm=shop&q=" + encoded product name
+5. Include estimatedPrice based on typical retail prices
+
+URL FORMAT EXAMPLES:
+- Brand: "Patagonia", Product: "Organic Cotton Hoodie" 
+  → searchUrl: "https://www.google.com/search?tbm=shop&q=Patagonia+Organic+Cotton+Hoodie"
+- Brand: "Seventh Generation", Product: "Dish Soap"
+  → searchUrl: "https://www.google.com/search?tbm=shop&q=Seventh+Generation+Dish+Soap"
+
+QUALITY CHECK:
+✓ Is this product the same category as what the user is looking at?
+✓ Does this product serve the same function?
+✓ Is productUrl set to null? (REQUIRED)
+✓ Is searchUrl a valid Google Shopping search URL?`;
 
 // Analyze product from URL
 export async function analyzeProductFromUrl(
@@ -350,11 +631,11 @@ export async function analyzeProductFromUrl(
               temperature: 0.4,
               topK: 32,
               topP: 1,
-              maxOutputTokens: 4096,
+              maxOutputTokens: 8192,
             },
           }),
         },
-        30000 // 30 second timeout per model
+        60000 // 60 second timeout per model
       );
 
       if (response.ok) {

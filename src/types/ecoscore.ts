@@ -1,5 +1,44 @@
 // ecoscore data models - structured for future api integration
 
+// Detailed sub-score breakdowns based on the EcoScore algorithm
+export interface PackagingBreakdown {
+  score: number; // S_packaging = 0.5·R + 0.3·M + 0.2·W
+  recyclability: { score: number; label: string }; // R: recyclable=100, partial=60, non=10
+  materialType: { score: number; label: string }; // M: paper/glass/aluminum=100, bioplastic=70, mixed plastic=30
+  weightEfficiency: { score: number; label: string }; // W: low packaging = higher score
+}
+
+export interface MaterialsBreakdown {
+  score: number; // S_materials = 0.6·H + 0.4·R
+  harmfulIngredients: { score: number; label: string }; // H: none=100, some=50, many=10
+  renewableSourcing: { score: number; label: string }; // R: % renewable/responsibly sourced
+}
+
+export interface CarbonBreakdown {
+  score: number; // S_carbon = 100 - min(100, E + T)
+  emissions: { score: number; label: string }; // E: low=10, medium=40, high=70
+  transport: { score: number; label: string }; // T: local=0, domestic=10, international=30
+}
+
+export interface WaterBreakdown {
+  score: number; // S_water = 100 - W_u
+  industryIntensity: { score: number; label: string }; // W_u: low=10, medium=40, high=70-90
+}
+
+export interface EthicsBreakdown {
+  score: number; // S_ethics = 0.5·C + 0.5·T
+  certifications: { score: number; label: string }; // C: Fairtrade, B Corp, FSC
+  transparency: { score: number; label: string }; // T: publishes sourcing = high
+}
+
+export interface DetailedEcoScoreBreakdown {
+  packaging: PackagingBreakdown;
+  materials: MaterialsBreakdown;
+  carbon: CarbonBreakdown;
+  water: WaterBreakdown;
+  ethics: EthicsBreakdown;
+}
+
 // Gemini analysis types
 export interface GeminiAnalysisResult {
   productName: string;
@@ -16,6 +55,7 @@ export interface GeminiAnalysisResult {
     ethics: number;
     recyclability: number;
   };
+  detailedBreakdown: DetailedEcoScoreBreakdown;
   concerns: string[];
   positives: string[];
   alternatives: GeminiAlternative[];
@@ -34,6 +74,7 @@ export interface GeminiAlternative {
     currency: string;
   } | null;
   productUrl: string | null;
+  searchUrl: string; // Google Shopping search URL - always works
   isPartner: boolean;
 }
 
