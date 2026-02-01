@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { onAuthChange, logOut, isFirebaseConfigured } from '@/config/firebase';
-import { getCurrentUser, registerUser } from '@/services/apiService';
+import { getCurrentUser, registerUser, addPoints as addPointsAPI } from '@/services/apiService';
 
 // User data from our MongoDB
 export interface UserData {
@@ -49,6 +49,7 @@ interface AuthContextType {
   registerNewUser: (username: string, displayName?: string) => Promise<void>;
   refreshUserData: () => Promise<void>;
   signOut: () => Promise<void>;
+  addPoints: (points: number, reason: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -147,6 +148,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNeedsRegistration(false);
   };
 
+  // Add points to user's balance
+  const addPoints = async (points: number, reason: string) => {
+    if (!firebaseUser || !userData) {
+      console.log('Cannot add points: User not authenticated');
+      // Still update local state for guest users
+      setUserData(prev => prev ? {
+        ...prev,
+        pointsBalance: prev.pointsBalance + points,
+        totalPointsEarned: prev.totalPointsEarned + points,
+        swapsThisMonth: prev.swapsThisMonth + 1,
+      } : null);
+      return;
+    }
+
+    try {
+      // Call API to add points
+      await addPointsAPI(points, reason);
+      
+      // Update local state immediately for better UX
+      setUserData(prev => prev ? {
+        ...prev,
+        pointsBalance: prev.pointsBalance + points,
+        totalPointsEarned: prev.totalPointsEarned + points,
+        swapsThisMonth: prev.swapsThisMonth + 1,
+      } : null);
+
+      // Refresh from server to get accurate data
+      await refreshUserData();
+    } catch (error) {
+      console.error('Failed to add points via API:', error);
+      // Still update locally even if API fails
+      setUserData(prev => prev ? {
+        ...prev,
+        pointsBalance: prev.pointsBalance + points,
+        totalPointsEarned: prev.totalPointsEarned + points,
+        swapsThisMonth: prev.swapsThisMonth + 1,
+      } : null);
+    }
+  };
+
   const value: AuthContextType = {
     firebaseUser,
     userData,
@@ -158,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerNewUser,
     refreshUserData,
     signOut,
+    addPoints,
   };
 
   return (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/Button';
 import { EcoScoreBadge } from '@/components/EcoScoreBadge';
 import { Mascot } from '@/components/Mascot';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   GeminiAnalysisResult,
   getEcoScoreLevel,
@@ -23,6 +24,16 @@ import {
   DollarSign,
   BadgeCheck,
   ShoppingBag,
+  Truck,
+  Factory,
+  Scale,
+  FlaskConical,
+  TreePine,
+  Eye,
+  Award,
+  ChevronDown,
+  ChevronUp,
+  Info,
 } from 'lucide-react';
 
 interface AnalysisResultsScreenProps {
@@ -46,22 +57,50 @@ function formatPrice(price: { min: number; max: number; currency: string } | nul
   return `${formatter.format(price.min)} - ${formatter.format(price.max)}`;
 }
 
+// Helper to get score color
+function getScoreColor(score: number): string {
+  if (score >= 80) return 'text-green-500';
+  if (score >= 60) return 'text-emerald-500';
+  if (score >= 40) return 'text-yellow-500';
+  if (score >= 20) return 'text-orange-500';
+  return 'text-red-500';
+}
+
+function getScoreBgColor(score: number): string {
+  if (score >= 80) return 'bg-green-500';
+  if (score >= 60) return 'bg-emerald-500';
+  if (score >= 40) return 'bg-yellow-500';
+  if (score >= 20) return 'bg-orange-500';
+  return 'bg-red-500';
+}
+
 export function AnalysisResultsScreen({
   analysis,
   capturedImages,
   onBack,
   onScanAgain,
 }: AnalysisResultsScreenProps) {
+  const { addPoints } = useAuth();
   const [selectedAlternative, setSelectedAlternative] = useState<number | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showDeclined, setShowDeclined] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState(0);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
-  const handleConfirmSwap = () => {
+  const handleConfirmSwap = async () => {
     if (selectedAlternative === null) return;
     const alt = analysis.alternatives[selectedAlternative];
     const points = calculatePoints(analysis.ecoScore, alt.estimatedEcoScore);
     setEarnedPoints(points);
+    
+    // Add points to user's balance
+    await addPoints(points, `Swapped to ${alt.name} by ${alt.brand}`);
+    
     setShowCelebration(true);
+  };
+
+  const handleDeclineAll = () => {
+    setShowDeclined(true);
   };
 
   const scoreLevel = getEcoScoreLevel(analysis.ecoScore);
@@ -73,6 +112,34 @@ export function AnalysisResultsScreen({
     bad: 'text-red-500 bg-red-500/10',
   };
 
+  // Show declined screen with sad mascot
+  if (showDeclined) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-sm text-center space-y-8 animate-slide-up">
+          <Mascot size="xl" mood="sad" />
+
+          <div className="space-y-3">
+            <h1 className="text-2xl font-bold text-foreground">maybe next time</h1>
+            <p className="text-muted-foreground">
+              no worries! every small step counts. we'll find more eco-friendly options for you in the future.
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setShowDeclined(false)} className="flex-1">
+              go back
+            </Button>
+            <Button onClick={onScanAgain} className="flex-1">
+              scan again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show celebration screen when user chooses a greener alternative
   if (showCelebration) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
@@ -183,6 +250,340 @@ export function AnalysisResultsScreen({
             {analysis.summary}
           </p>
         </section>
+
+        {/* Detailed EcoScore Breakdown */}
+        {analysis.detailedBreakdown && (
+          <section className="space-y-3">
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
+              <Info className="w-4 h-4 text-primary" />
+              how we calculated your score
+            </h3>
+            
+            <div className="space-y-2">
+              {/* Packaging & Recyclability */}
+              <div className="rounded-xl border border-border overflow-hidden">
+                <button
+                  onClick={() => setExpandedCategory(expandedCategory === 'packaging' ? null : 'packaging')}
+                  className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10">
+                      <Package className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-medium text-foreground">Packaging & Recyclability</h4>
+                      <p className="text-xs text-muted-foreground">Weight: 25%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-10 h-2 rounded-full bg-muted overflow-hidden`}>
+                        <div 
+                          className={`h-full ${getScoreBgColor(analysis.detailedBreakdown.packaging.score)}`}
+                          style={{ width: `${analysis.detailedBreakdown.packaging.score}%` }}
+                        />
+                      </div>
+                      <span className={`text-sm font-semibold ${getScoreColor(analysis.detailedBreakdown.packaging.score)}`}>
+                        {analysis.detailedBreakdown.packaging.score}
+                      </span>
+                    </div>
+                    {expandedCategory === 'packaging' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
+                </button>
+                {expandedCategory === 'packaging' && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Recycle className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Recyclability</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(analysis.detailedBreakdown.packaging.recyclability.score)}`}>
+                          {analysis.detailedBreakdown.packaging.recyclability.score}/100
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.packaging.recyclability.label}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Package className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Material Type</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(analysis.detailedBreakdown.packaging.materialType.score)}`}>
+                          {analysis.detailedBreakdown.packaging.materialType.score}/100
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.packaging.materialType.label}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Scale className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Weight Efficiency</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(analysis.detailedBreakdown.packaging.weightEfficiency.score)}`}>
+                          {analysis.detailedBreakdown.packaging.weightEfficiency.score}/100
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.packaging.weightEfficiency.label}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 p-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                      <strong>Formula:</strong> S = 0.5×R + 0.3×M + 0.2×W
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Materials / Ingredients */}
+              <div className="rounded-xl border border-border overflow-hidden">
+                <button
+                  onClick={() => setExpandedCategory(expandedCategory === 'materials' ? null : 'materials')}
+                  className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <FlaskConical className="w-5 h-5 text-green-500" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-medium text-foreground">Materials & Ingredients</h4>
+                      <p className="text-xs text-muted-foreground">Weight: 25%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-10 h-2 rounded-full bg-muted overflow-hidden`}>
+                        <div 
+                          className={`h-full ${getScoreBgColor(analysis.detailedBreakdown.materials.score)}`}
+                          style={{ width: `${analysis.detailedBreakdown.materials.score}%` }}
+                        />
+                      </div>
+                      <span className={`text-sm font-semibold ${getScoreColor(analysis.detailedBreakdown.materials.score)}`}>
+                        {analysis.detailedBreakdown.materials.score}
+                      </span>
+                    </div>
+                    {expandedCategory === 'materials' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
+                </button>
+                {expandedCategory === 'materials' && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Harmful Ingredients</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(analysis.detailedBreakdown.materials.harmfulIngredients.score)}`}>
+                          {analysis.detailedBreakdown.materials.harmfulIngredients.score}/100
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.materials.harmfulIngredients.label}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <TreePine className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Renewable Sourcing</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(analysis.detailedBreakdown.materials.renewableSourcing.score)}`}>
+                          {analysis.detailedBreakdown.materials.renewableSourcing.score}/100
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.materials.renewableSourcing.label}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 p-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                      <strong>Formula:</strong> S = 0.6×H + 0.4×R
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Carbon Footprint */}
+              <div className="rounded-xl border border-border overflow-hidden">
+                <button
+                  onClick={() => setExpandedCategory(expandedCategory === 'carbon' ? null : 'carbon')}
+                  className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-orange-500/10">
+                      <Factory className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-medium text-foreground">Carbon Footprint & Transport</h4>
+                      <p className="text-xs text-muted-foreground">Weight: 20%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-10 h-2 rounded-full bg-muted overflow-hidden`}>
+                        <div 
+                          className={`h-full ${getScoreBgColor(analysis.detailedBreakdown.carbon.score)}`}
+                          style={{ width: `${analysis.detailedBreakdown.carbon.score}%` }}
+                        />
+                      </div>
+                      <span className={`text-sm font-semibold ${getScoreColor(analysis.detailedBreakdown.carbon.score)}`}>
+                        {analysis.detailedBreakdown.carbon.score}
+                      </span>
+                    </div>
+                    {expandedCategory === 'carbon' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
+                </button>
+                {expandedCategory === 'carbon' && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Factory className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Emissions</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(100 - analysis.detailedBreakdown.carbon.emissions.score)}`}>
+                          {analysis.detailedBreakdown.carbon.emissions.score} penalty
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.carbon.emissions.label}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Truck className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Transport</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(100 - analysis.detailedBreakdown.carbon.transport.score)}`}>
+                          {analysis.detailedBreakdown.carbon.transport.score} penalty
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.carbon.transport.label}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 p-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                      <strong>Formula:</strong> S = 100 - min(100, E + T)
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Water Usage */}
+              <div className="rounded-xl border border-border overflow-hidden">
+                <button
+                  onClick={() => setExpandedCategory(expandedCategory === 'water' ? null : 'water')}
+                  className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-cyan-500/10">
+                      <Droplets className="w-5 h-5 text-cyan-500" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-medium text-foreground">Water Usage</h4>
+                      <p className="text-xs text-muted-foreground">Weight: 15%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-10 h-2 rounded-full bg-muted overflow-hidden`}>
+                        <div 
+                          className={`h-full ${getScoreBgColor(analysis.detailedBreakdown.water.score)}`}
+                          style={{ width: `${analysis.detailedBreakdown.water.score}%` }}
+                        />
+                      </div>
+                      <span className={`text-sm font-semibold ${getScoreColor(analysis.detailedBreakdown.water.score)}`}>
+                        {analysis.detailedBreakdown.water.score}
+                      </span>
+                    </div>
+                    {expandedCategory === 'water' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
+                </button>
+                {expandedCategory === 'water' && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Droplets className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Industry Intensity</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(100 - analysis.detailedBreakdown.water.industryIntensity.score)}`}>
+                          {analysis.detailedBreakdown.water.industryIntensity.score} usage
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.water.industryIntensity.label}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 p-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                      <strong>Formula:</strong> S = 100 - W_u
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Ethics & Transparency */}
+              <div className="rounded-xl border border-border overflow-hidden">
+                <button
+                  onClick={() => setExpandedCategory(expandedCategory === 'ethics' ? null : 'ethics')}
+                  className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-500/10">
+                      <Heart className="w-5 h-5 text-purple-500" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-medium text-foreground">Ethics & Transparency</h4>
+                      <p className="text-xs text-muted-foreground">Weight: 15%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-10 h-2 rounded-full bg-muted overflow-hidden`}>
+                        <div 
+                          className={`h-full ${getScoreBgColor(analysis.detailedBreakdown.ethics.score)}`}
+                          style={{ width: `${analysis.detailedBreakdown.ethics.score}%` }}
+                        />
+                      </div>
+                      <span className={`text-sm font-semibold ${getScoreColor(analysis.detailedBreakdown.ethics.score)}`}>
+                        {analysis.detailedBreakdown.ethics.score}
+                      </span>
+                    </div>
+                    {expandedCategory === 'ethics' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
+                </button>
+                {expandedCategory === 'ethics' && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Certifications</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(analysis.detailedBreakdown.ethics.certifications.score)}`}>
+                          {analysis.detailedBreakdown.ethics.certifications.score}/100
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.ethics.certifications.label}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Transparency</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-medium ${getScoreColor(analysis.detailedBreakdown.ethics.transparency.score)}`}>
+                          {analysis.detailedBreakdown.ethics.transparency.score}/100
+                        </span>
+                        <p className="text-xs text-muted-foreground">{analysis.detailedBreakdown.ethics.transparency.label}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 p-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                      <strong>Formula:</strong> S = 0.5×C + 0.5×T
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Final formula */}
+            <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <p className="text-xs text-center text-muted-foreground">
+                <strong className="text-foreground">Final EcoScore</strong> = 0.25×Packaging + 0.25×Materials + 0.20×Carbon + 0.15×Water + 0.15×Ethics
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* concerns */}
         {analysis.concerns.length > 0 && (
@@ -339,17 +740,17 @@ export function AnalysisResultsScreen({
                   </div>
                 </button>
 
-                {/* Visit Product button */}
-                {alt.productUrl && (
+                {/* Shop Now button - uses searchUrl for reliable Google Shopping search */}
+                {(alt.searchUrl || alt.productUrl) && (
                   <a
-                    href={alt.productUrl}
+                    href={alt.searchUrl || alt.productUrl || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
                     className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
                   >
                     <ShoppingBag className="w-4 h-4" />
-                    Visit Product Page
+                    Shop Now
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}
@@ -359,8 +760,8 @@ export function AnalysisResultsScreen({
         </section>
       </div>
 
-      {/* confirm button */}
-      <div className="fixed bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent">
+      {/* action buttons */}
+      <div className="fixed bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent space-y-2">
         <Button
           onClick={handleConfirmSwap}
           disabled={selectedAlternative === null}
@@ -370,6 +771,14 @@ export function AnalysisResultsScreen({
           {selectedAlternative !== null
             ? `swap to ${analysis.alternatives[selectedAlternative].name}`
             : 'select an alternative'}
+        </Button>
+        
+        <Button
+          variant="ghost"
+          onClick={handleDeclineAll}
+          className="w-full text-muted-foreground hover:text-foreground"
+        >
+          keep original product
         </Button>
       </div>
     </div>
