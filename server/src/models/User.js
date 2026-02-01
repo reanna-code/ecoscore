@@ -140,12 +140,13 @@ const userSchema = new mongoose.Schema({
     createdAt: Date
   },
 
-  // Minted NFT Certificates
+  // Minted NFT Certificates (milestone-based)
   nftCertificates: [{
     mintAddress: String,
     metadataUri: String,
     imageUri: String,
-    donationAmount: Number,
+    milestone: Number, // The milestone tier: 5, 25, 50, 100
+    donationAmountAtMint: Number, // Total donated when minted
     co2Offset: Number,
     ngoName: String,
     txSignature: String,

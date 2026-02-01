@@ -86,17 +86,27 @@ async function uploadJsonToPinata(metadata) {
 }
 
 /**
- * Try to generate art with Gemini AI
+ * Generate unique art with Gemini AI based on milestone tier
  */
-async function generateWithGemini(co2Offset, donationAmount) {
+async function generateWithGemini(milestone, badgeName, co2Offset) {
   const ai = getGenAI();
   if (!ai) {
     console.log('Gemini API key not configured');
     return null;
   }
 
+  // Tier-specific themes for Gemini
+  const tierThemes = {
+    5: 'a tiny seedling sprouting from rich soil, morning dew drops, soft sunrise light, hope and new beginnings',
+    25: 'a young sapling with fresh green leaves, gentle breeze, butterflies, growth and progress',
+    50: 'a majestic tree with full canopy, birds nesting, dappled sunlight, strength and resilience',
+    100: 'an ancient forest guardian tree, mystical atmosphere, fireflies, woodland creatures, wisdom and protection'
+  };
+
+  const theme = tierThemes[milestone] || tierThemes[5];
+
   try {
-    console.log('🎨 Attempting Gemini image generation...');
+    console.log(`🎨 Generating ${badgeName} badge art with Gemini...`);
     const model = ai.getGenerativeModel({
       model: 'gemini-2.0-flash-exp',
       generationConfig: {
@@ -104,12 +114,17 @@ async function generateWithGemini(co2Offset, donationAmount) {
       }
     });
 
-    const prompt = `Generate a beautiful, artistic digital illustration for an environmental NFT certificate.
-Style: Modern digital art, vibrant colors, nature-inspired
-Theme: Celebrating ${co2Offset}kg of CO2 offset through a $${donationAmount} environmental donation
-Elements to include: Abstract representation of nature, leaves, earth, sustainability
-Colors: Greens, teals, blues, earth tones
-Important: Create ARTWORK only, no text whatsoever. Pure visual art.`;
+    const prompt = `Create a beautiful, unique digital illustration for an eco-achievement NFT badge.
+
+Theme: "${badgeName}" - ${theme}
+Style: Whimsical digital art, Studio Ghibli inspired, warm and inviting
+Mood: Celebratory, hopeful, nature-loving
+Colors: Rich greens, warm earth tones, golden highlights, soft sky blues
+
+The image represents offsetting ${co2Offset} kg of CO2 through environmental action.
+
+CRITICAL: Generate ARTWORK ONLY. No text, no words, no letters, no numbers. Pure visual art.
+Make it feel magical and personal - this is a unique achievement badge.`;
 
     const result = await model.generateContent(prompt);
     const response = result.response;
@@ -117,7 +132,7 @@ Important: Create ARTWORK only, no text whatsoever. Pure visual art.`;
     if (response.candidates && response.candidates[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.inlineData && part.inlineData.data) {
-          console.log('✅ Gemini generated image successfully!');
+          console.log(`✅ Gemini generated unique ${badgeName} image!`);
           return Buffer.from(part.inlineData.data, 'base64');
         }
       }
@@ -131,34 +146,80 @@ Important: Create ARTWORK only, no text whatsoever. Pure visual art.`;
   }
 }
 
+// Milestone tier configurations
+const MILESTONE_THEMES = {
+  5: {
+    name: 'Seedling',
+    bgColors: ['#4ade80', '#22c55e', '#16a34a'],
+    accentColor: '#15803d',
+    trees: 1
+  },
+  25: {
+    name: 'Sapling',
+    bgColors: ['#34d399', '#10b981', '#059669'],
+    accentColor: '#047857',
+    trees: 3
+  },
+  50: {
+    name: 'Tree',
+    bgColors: ['#2dd4bf', '#14b8a6', '#0d9488'],
+    accentColor: '#0f766e',
+    trees: 5
+  },
+  100: {
+    name: 'Forest Guardian',
+    bgColors: ['#22d3ee', '#06b6d4', '#0891b2'],
+    accentColor: '#0e7490',
+    trees: 8
+  }
+};
+
 /**
- * Generate clean eco-themed NFT art
+ * Generate milestone badge NFT art
+ * Tries Gemini AI first for unique art, falls back to Canvas
  */
-export async function generateCertificateImage({ userName, donationAmount, co2Offset, ngoName }) {
+export async function generateCertificateImage({ userName, donationAmount, co2Offset, ngoName, milestone, badgeName }) {
+  // Get theme based on milestone (default to $5 tier)
+  const tier = milestone || donationAmount || 5;
+  const theme = MILESTONE_THEMES[tier] || MILESTONE_THEMES[5];
+  const finalBadgeName = badgeName || theme.name;
+
+  // Try Gemini AI first for unique artwork
+  const geminiImage = await generateWithGemini(tier, finalBadgeName, co2Offset);
+  if (geminiImage) {
+    const ipfsUrl = await uploadToPinata(geminiImage, `ecoscore-${finalBadgeName.toLowerCase().replace(' ', '-')}-${Date.now()}.png`);
+    if (ipfsUrl) {
+      return ipfsUrl;
+    }
+  }
+
+  // Fall back to Canvas generation
+  console.log('⚠️ Falling back to Canvas generation...');
   const width = 800;
   const height = 800;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  // Beautiful gradient sky background
+  // Beautiful gradient background based on tier
   const skyGradient = ctx.createLinearGradient(0, 0, 0, height);
   skyGradient.addColorStop(0, '#0ea5e9');    // Sky blue
-  skyGradient.addColorStop(0.4, '#22d3ee');  // Cyan
-  skyGradient.addColorStop(0.7, '#a7f3d0');  // Light green
-  skyGradient.addColorStop(1, '#059669');    // Emerald
+  skyGradient.addColorStop(0.3, '#22d3ee');  // Cyan
+  skyGradient.addColorStop(0.6, theme.bgColors[0]);
+  skyGradient.addColorStop(1, theme.bgColors[2]);
   ctx.fillStyle = skyGradient;
   ctx.fillRect(0, 0, width, height);
 
-  // Sun/glow in upper area
-  const sunGradient = ctx.createRadialGradient(600, 150, 0, 600, 150, 200);
-  sunGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-  sunGradient.addColorStop(0.3, 'rgba(253, 224, 71, 0.6)');
+  // Sun/glow - larger for higher tiers
+  const sunSize = 150 + tier * 0.5;
+  const sunGradient = ctx.createRadialGradient(600, 150, 0, 600, 150, sunSize);
+  sunGradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+  sunGradient.addColorStop(0.3, 'rgba(253, 224, 71, 0.7)');
   sunGradient.addColorStop(1, 'transparent');
   ctx.fillStyle = sunGradient;
   ctx.fillRect(0, 0, width, 400);
 
   // Rolling hills in background
-  ctx.fillStyle = '#10b981';
+  ctx.fillStyle = theme.bgColors[1];
   ctx.beginPath();
   ctx.moveTo(0, 600);
   ctx.quadraticCurveTo(200, 500, 400, 550);
@@ -169,7 +230,7 @@ export async function generateCertificateImage({ userName, donationAmount, co2Of
   ctx.fill();
 
   // Closer hill
-  ctx.fillStyle = '#059669';
+  ctx.fillStyle = theme.bgColors[2];
   ctx.beginPath();
   ctx.moveTo(0, 700);
   ctx.quadraticCurveTo(250, 600, 500, 650);
@@ -179,14 +240,14 @@ export async function generateCertificateImage({ userName, donationAmount, co2Of
   ctx.closePath();
   ctx.fill();
 
-  // Simple tree function
+  // Tree drawing function
   const drawTree = (x, y, scale) => {
     // Trunk
     ctx.fillStyle = '#78350f';
     ctx.fillRect(x - 8 * scale, y, 16 * scale, 40 * scale);
 
     // Foliage (3 circles)
-    ctx.fillStyle = '#166534';
+    ctx.fillStyle = theme.accentColor;
     ctx.beginPath();
     ctx.arc(x, y - 20 * scale, 35 * scale, 0, Math.PI * 2);
     ctx.fill();
@@ -198,46 +259,102 @@ export async function generateCertificateImage({ userName, donationAmount, co2Of
     ctx.fill();
   };
 
-  // Draw trees
-  drawTree(100, 620, 1.2);
-  drawTree(250, 580, 0.8);
-  drawTree(680, 550, 1.5);
-  drawTree(550, 600, 0.9);
+  // Tree positions
+  const treePositions = [
+    { x: 100, y: 620, scale: 1.2 },
+    { x: 700, y: 600, scale: 1.3 },
+    { x: 250, y: 580, scale: 0.9 },
+    { x: 550, y: 610, scale: 1.0 },
+    { x: 680, y: 550, scale: 1.5 },
+    { x: 150, y: 560, scale: 0.7 },
+    { x: 450, y: 590, scale: 0.8 },
+    { x: 350, y: 640, scale: 1.1 }
+  ];
 
-  // Earth globe in center
-  const cx = 400, cy = 350, r = 120;
+  // Draw trees based on milestone tier
+  for (let i = 0; i < Math.min(theme.trees, treePositions.length); i++) {
+    const pos = treePositions[i];
+    drawTree(pos.x, pos.y, pos.scale);
+  }
 
-  // Globe shadow
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+  // Central badge circle
+  const cx = 400, cy = 320, r = 140;
+
+  // Badge glow
+  const glowGradient = ctx.createRadialGradient(cx, cy, r * 0.8, cx, cy, r * 1.5);
+  glowGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+  glowGradient.addColorStop(1, 'transparent');
+  ctx.fillStyle = glowGradient;
   ctx.beginPath();
-  ctx.ellipse(cx + 10, cy + 130, r * 0.8, 20, 0, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r * 1.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Ocean (base)
-  ctx.fillStyle = '#0ea5e9';
+  // Badge background
+  const badgeGradient = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+  badgeGradient.addColorStop(0, '#ffffff');
+  badgeGradient.addColorStop(1, '#f0fdf4');
+  ctx.fillStyle = badgeGradient;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Continents (simplified)
-  ctx.fillStyle = '#22c55e';
-  // Americas-ish
-  ctx.beginPath();
-  ctx.ellipse(cx - 40, cy - 20, 35, 50, -0.3, 0, Math.PI * 2);
-  ctx.fill();
-  // Europe/Africa-ish
-  ctx.beginPath();
-  ctx.ellipse(cx + 50, cy, 30, 60, 0.2, 0, Math.PI * 2);
-  ctx.fill();
+  // Badge border
+  ctx.strokeStyle = theme.bgColors[1];
+  ctx.lineWidth = 8;
+  ctx.stroke();
 
-  // Globe shine
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-  ctx.beginPath();
-  ctx.ellipse(cx - 40, cy - 40, 30, 20, -0.5, 0, Math.PI * 2);
-  ctx.fill();
+  // Badge tier icon (simple shapes instead of emoji for canvas compatibility)
+  ctx.fillStyle = theme.accentColor;
+  if (tier >= 100) {
+    // Forest - multiple trees
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cx + i * 40, cy + 20);
+      ctx.lineTo(cx + i * 40 - 25, cy - 30);
+      ctx.lineTo(cx + i * 40 + 25, cy - 30);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (tier >= 50) {
+    // Tree
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 30);
+    ctx.lineTo(cx - 50, cy - 40);
+    ctx.lineTo(cx + 50, cy - 40);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(cx - 10, cy + 30, 20, 30);
+  } else if (tier >= 25) {
+    // Sapling - leaf shape
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - 20, 30, 50, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 5, cy + 25, 10, 35);
+  } else {
+    // Seedling - small sprout
+    ctx.beginPath();
+    ctx.ellipse(cx - 15, cy - 20, 20, 35, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx + 15, cy - 15, 18, 30, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 4, cy + 10, 8, 40);
+  }
 
-  // Floating leaves around globe
-  ctx.fillStyle = '#16a34a';
+  // Milestone amount
+  ctx.font = 'bold 48px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = theme.accentColor;
+  ctx.fillText(`$${tier}`, cx, cy + 90);
+
+  // Badge name at top
+  ctx.font = 'bold 28px Arial, sans-serif';
+  ctx.fillStyle = '#374151';
+  ctx.fillText(badgeName || theme.name, cx, cy - 90);
+
+  // Floating leaves around badge
+  ctx.fillStyle = theme.bgColors[0];
   const drawLeaf = (x, y, angle, size) => {
     ctx.save();
     ctx.translate(x, y);
@@ -248,20 +365,23 @@ export async function generateCertificateImage({ userName, donationAmount, co2Of
     ctx.restore();
   };
 
-  drawLeaf(cx - 160, cy - 80, 0.5, 15);
-  drawLeaf(cx + 170, cy - 60, -0.4, 12);
-  drawLeaf(cx - 140, cy + 100, 0.8, 10);
-  drawLeaf(cx + 150, cy + 80, -0.6, 14);
-  drawLeaf(cx - 50, cy - 160, 0.2, 11);
-  drawLeaf(cx + 80, cy + 150, -0.3, 13);
+  // More leaves for higher tiers
+  const leafCount = 3 + Math.floor(tier / 20);
+  for (let i = 0; i < leafCount; i++) {
+    const angle = (i / leafCount) * Math.PI * 2;
+    const dist = 180 + (i % 3) * 20;
+    const x = cx + Math.cos(angle) * dist;
+    const y = cy + Math.sin(angle) * dist;
+    drawLeaf(x, y, angle + 0.5, 10 + (i % 4) * 3);
+  }
 
   ctx.globalAlpha = 1;
 
   // Convert to buffer and upload
   const buffer = canvas.toBuffer('image/png');
-  console.log(`✅ Generated certificate image (${buffer.length} bytes)`);
+  console.log(`✅ Generated ${theme.name} badge image (${buffer.length} bytes)`);
 
-  const ipfsUrl = await uploadToPinata(buffer, `ecoscore-cert-${Date.now()}.png`);
+  const ipfsUrl = await uploadToPinata(buffer, `ecoscore-${theme.name.toLowerCase().replace(' ', '-')}-badge-${Date.now()}.png`);
 
   if (ipfsUrl) {
     return ipfsUrl;
