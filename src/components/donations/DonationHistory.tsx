@@ -18,6 +18,7 @@ interface Pledge {
 
 interface DonationHistoryProps {
   pledges: Pledge[];
+  onPledgeClick?: (pledge: Pledge) => void;
 }
 
 const statusColors = {
@@ -27,7 +28,7 @@ const statusColors = {
   failed: 'bg-red-100 text-red-800'
 };
 
-export function DonationHistory({ pledges }: DonationHistoryProps) {
+export function DonationHistory({ pledges, onPledgeClick }: DonationHistoryProps) {
   if (pledges.length === 0) {
     return (
       <Card>
@@ -49,7 +50,10 @@ export function DonationHistory({ pledges }: DonationHistoryProps) {
         {pledges.map((pledge) => (
           <div
             key={pledge.id}
-            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+            className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg ${
+              pledge.status === 'completed' && onPledgeClick ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''
+            }`}
+            onClick={() => pledge.status === 'completed' && onPledgeClick?.(pledge)}
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center overflow-hidden">
@@ -93,9 +97,9 @@ export function DonationHistory({ pledges }: DonationHistoryProps) {
             </div>
           </div>
         ))}
-        {pledges.some(p => p.explorerUrl) && (
+        {pledges.some(p => p.status === 'completed') && (
           <p className="text-xs text-center text-gray-500 pt-2">
-            Click the link icon to verify on Solana Explorer
+            Tap a completed donation to share your impact certificate
           </p>
         )}
       </CardContent>

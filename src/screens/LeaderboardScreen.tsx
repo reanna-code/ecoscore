@@ -52,7 +52,7 @@ export function LeaderboardScreen() {
     : topThree;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-32">
       {/* Add Friends Modal */}
       {showAddFriends && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">

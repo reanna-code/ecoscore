@@ -120,14 +120,24 @@ router.post('/capture', authenticateToken, async (req, res) => {
       user.swapsThisMonth = (user.swapsThisMonth || 0) + 1;
     }
 
-    // Add to scan history
-    user.scanHistory.push({
+    // Add to scan history (with swap info if applicable)
+    const scanEntry = {
       productName: product.name,
       brand: product.brand,
       category: product.category,
       ecoScore: product.ecoScore,
       scannedAt: now
-    });
+    };
+
+    if (selectedAlternativeId && alternativeProduct) {
+      scanEntry.swappedTo = {
+        productName: alternativeProduct.name,
+        brand: alternativeProduct.brand,
+        ecoScore: alternativeProduct.ecoScore
+      };
+    }
+
+    user.scanHistory.push(scanEntry);
 
     if (user.scanHistory.length > 50) {
       user.scanHistory = user.scanHistory.slice(-50);

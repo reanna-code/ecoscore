@@ -40,16 +40,25 @@ class SolanaClient {
 
     this.connection = new Connection(rpcUrl, 'confirmed');
 
-    // Load wallet from environment or file
-    const walletPath = process.env.SOLANA_WALLET_PATH ||
-      path.join(process.env.HOME, '.config/solana/ecoscore.json');
-
+    // Load wallet from environment variable (preferred for team sharing) or file
     try {
-      const walletData = JSON.parse(fs.readFileSync(walletPath, 'utf-8'));
-      this.wallet = Keypair.fromSecretKey(Uint8Array.from(walletData));
+      if (process.env.SOLANA_WALLET_KEY) {
+        // Parse wallet from env variable (JSON array of numbers)
+        const walletData = JSON.parse(process.env.SOLANA_WALLET_KEY);
+        this.wallet = Keypair.fromSecretKey(Uint8Array.from(walletData));
+        console.log('✅ Loaded Solana wallet from SOLANA_WALLET_KEY env');
+      } else {
+        // Fallback to file
+        const walletPath = process.env.SOLANA_WALLET_PATH ||
+          path.join(process.env.HOME, '.config/solana/ecoscore.json');
+        const walletData = JSON.parse(fs.readFileSync(walletPath, 'utf-8'));
+        this.wallet = Keypair.fromSecretKey(Uint8Array.from(walletData));
+        console.log('✅ Loaded Solana wallet from file:', walletPath);
+      }
     } catch (error) {
       console.error('Failed to load Solana wallet:', error.message);
-      throw new Error('Solana wallet not configured');
+      console.error('Set SOLANA_WALLET_KEY in .env or ensure wallet file exists');
+      throw new Error('Solana wallet not configured. Add SOLANA_WALLET_KEY to .env');
     }
 
     // Set up Anchor provider

@@ -19,7 +19,7 @@ export function DiscoverScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-32">
       {/* header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg border-b border-border p-4">
         <h1 className="text-xl font-bold">discover</h1>

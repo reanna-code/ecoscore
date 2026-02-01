@@ -132,7 +132,7 @@ export function CategoryBrowseScreen({ category, onBack }: CategoryBrowseScreenP
     category ? category.charAt(0).toUpperCase() + category.slice(1) : 'Products';
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-32">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="flex items-center gap-3 p-4">

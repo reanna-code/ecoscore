@@ -34,7 +34,13 @@ const scanSchema = new mongoose.Schema({
   brand: String,
   category: String,
   ecoScore: Number,
-  scannedAt: { type: Date, default: Date.now }
+  scannedAt: { type: Date, default: Date.now },
+  // Swap info (if user chose an alternative)
+  swappedTo: {
+    productName: String,
+    brand: String,
+    ecoScore: Number
+  }
 }, { _id: true });
 
 // Main User schema
@@ -124,8 +130,28 @@ const userSchema = new mongoose.Schema({
   
   // Settings
   isPublicProfile: { type: Boolean, default: true },
-  notificationsEnabled: { type: Boolean, default: true }
-  
+  notificationsEnabled: { type: Boolean, default: true },
+
+  // Custodial Solana Wallet
+  solanaWallet: {
+    publicKey: String,
+    // Encrypted private key (in production, use proper key management)
+    encryptedPrivateKey: String,
+    createdAt: Date
+  },
+
+  // Minted NFT Certificates
+  nftCertificates: [{
+    mintAddress: String,
+    metadataUri: String,
+    imageUri: String,
+    donationAmount: Number,
+    co2Offset: Number,
+    ngoName: String,
+    txSignature: String,
+    mintedAt: { type: Date, default: Date.now }
+  }]
+
 }, {
   timestamps: true, // adds createdAt and updatedAt
 });
@@ -178,6 +204,7 @@ userSchema.methods.toOwnProfile = function() {
     swapsThisMonth: this.swapsThisMonth,
     badges: this.badges,
     friends: this.friends,
+    scanHistory: this.scanHistory,
     isPublicProfile: this.isPublicProfile,
     notificationsEnabled: this.notificationsEnabled,
     createdAt: this.createdAt,

@@ -83,14 +83,19 @@ Users can optionally claim a **soulbound (non-transferable) certificate** provin
 ## Tech Stack
 
 **Frontend**
-- React + TypeScript
+- React + TypeScript + Vite
 - Tailwind CSS + shadcn/ui
-- Vite
+- Gemini AI (product photo analysis)
+
+**Backend**
+- Express.js + MongoDB
+- Node Canvas (NFT image generation)
+- Pinata IPFS (permanent storage)
 
 **Blockchain**
 - Solana (devnet)
 - Anchor Framework
-- SPL Token
+- Metaplex (NFT minting)
 
 ---
 
@@ -112,14 +117,28 @@ Ecoscore creates a sustainable ecosystem where everyone wins:
 git clone https://github.com/your-org/ecoscore.git
 cd ecoscore
 
-# Install dependencies
+# Install frontend dependencies
 npm install
 
-# Start development server
+# Start frontend dev server
 npm run dev
 ```
 
+### Backend Server
 
+```bash
+cd server
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your MongoDB URI, JWT secret, Pinata keys, etc.
+
+# Start backend server
+npm run dev
+```
 
 ### Solana Program
 
